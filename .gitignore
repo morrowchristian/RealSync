@@ -11,6 +11,8 @@ venv/
 ENV/
 env.bak/
 *.sqlite3
+**/migrations/
+!**/migrations/__init__.py
 
 # === Django ===
 *.log
