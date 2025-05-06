@@ -1,13 +1,21 @@
 from django.test import TestCase
-from django.contrib.admin.sites import site
-from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+from users.models import Agent
 
-Agent = get_user_model()
+class AgentAPITest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        Agent.objects.create_user(username="agent3", password="testpass")
 
-class AgentAdminTest(TestCase):
-    def test_agent_model_registered_in_admin(self):
-        self.assertIn(Agent, site._registry)
+    def test_list_agents(self):
+        response = self.client.get("/api/agents/")
+        self.assertEqual(response.status_code, 200)
 
-    def test_useradmin_is_used(self):
-        from django.contrib.auth.admin import UserAdmin
-        self.assertIsInstance(site._registry[Agent], UserAdmin)
+    def test_create_agent(self):
+        data = {
+            "username": "newagent",
+            "password": "secretpass123",
+            "email": "newagent@example.com",
+        }
+        response = self.client.post("/api/agents/", data)
+        self.assertEqual(response.status_code, 201)

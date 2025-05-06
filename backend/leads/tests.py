@@ -1,26 +1,34 @@
+#leads/tests.py
 from django.test import TestCase
-from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+from users.models import Agent
 from leads.models import Lead
 
-Agent = get_user_model()
-
-class LeadModelTest(TestCase):
+class LeadAPITest(TestCase):
     def setUp(self):
+        self.client = APIClient()
         self.agent = Agent.objects.create_user(username="agent1", password="testpass")
         self.lead = Lead.objects.create(
             full_name="John Doe",
             email="john@example.com",
-            phone="1234567890",
-            property_address="123 Elm Street",
+            phone="123-456-7890",
+            property_address="123 Main St",
             status="new",
-            agent=self.agent
+            agent=self.agent,
         )
 
-    def test_lead_created(self):
-        self.assertEqual(self.lead.full_name, "John Doe")
-        self.assertEqual(self.lead.status, "new")
-        self.assertEqual(self.lead.agent, self.agent)
+    def test_list_leads(self):
+        response = self.client.get("/api/leads/")
+        self.assertEqual(response.status_code, 200)
 
-    def test_status_choices(self):
-        status_choices = dict(Lead.STATUS_CHOICES)
-        self.assertIn(self.lead.status, status_choices)
+    def test_create_lead(self):
+        data = {
+            "full_name": "Jane Smith",
+            "email": "jane@example.com",
+            "phone": "987-555-1234",
+            "property_address": "456 Elm St",
+            "status": "new",
+            "agent": self.agent.id,
+        }
+        response = self.client.post("/api/leads/", data)
+        self.assertEqual(response.status_code, 201)

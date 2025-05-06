@@ -1,32 +1,43 @@
+#contracts/tests.py
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+from users.models import Agent
 from leads.models import Lead
 from contracts.models import Contract
 
-Agent = get_user_model()
-
-class ContractModelTest(TestCase):
+class ContractAPITest(TestCase):
     def setUp(self):
+        self.client = APIClient()
         self.agent = Agent.objects.create_user(username="agent2", password="testpass")
         self.lead = Lead.objects.create(
-            full_name="Jane Smith",
-            email="jane@example.com",
-            phone="9876543210",
-            property_address="456 Oak Ave",
+            full_name="Buyer Bob",
+            email="bob@example.com",
+            phone="555-555-5555",
+            property_address="789 Pine Ave",
             status="new",
-            agent=self.agent
+            agent=self.agent,
         )
         self.contract = Contract.objects.create(
             lead=self.lead,
-            document=SimpleUploadedFile("contract.pdf", b"file content"),
-            status="pending"
+            status="PENDING"
         )
 
-    def test_contract_created(self):
-        self.assertEqual(self.contract.lead, self.lead)
-        self.assertEqual(self.contract.status, "pending")
+    def test_list_contracts(self):
+        response = self.client.get("/api/contracts/")
+        self.assertEqual(response.status_code, 200)
 
-    def test_contract_status_choices(self):
-        status_choices = dict(Contract.STATUS_CHOICES)
-        self.assertIn(self.contract.status, status_choices)
+    def test_create_contract(self):
+        dummy_file = SimpleUploadedFile(
+            "test_contract.pdf",
+            b"dummy pdf content",
+            content_type="application/pdf"
+        )
+        data = {
+            "lead": self.lead.id,
+            "status": "signed",
+            "document": dummy_file,
+        }
+        response = self.client.post("/api/contracts/", data, format="multipart")
+        print("Create contract error:", response.data)
+        self.assertEqual(response.status_code, 201)

@@ -1,3 +1,8 @@
-from django.shortcuts import render
+# users/views.py
+from rest_framework import viewsets
+from .models import Agent
+from .serializers import AgentSerializer
 
-# Create your views here.
+class AgentViewSet(viewsets.ModelViewSet):
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer

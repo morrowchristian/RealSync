@@ -1,26 +1,6 @@
 RealSync Development Plan – Solo Developer Roadmap
 ==================================================
 
-PHASE 2: DATA MODELING
---------------------------------------------------
-
-Goal: Define and migrate all Django models
-
-Models to create:
-x Agent 
-- Lead (name, contact, property, status, agent FK)
-- Contract (PDF upload, status, linked to Lead)
-- Optional: Task, Note, ActivityLog
-
-Steps:
-- Add fields and relationships to models
-- Add model `choices` for status fields
-- Register models in Django admin
-- Run `makemigrations` and `migrate`
-
-Deliverable: Models are migrated and visible in admin
-
-
 PHASE 3: API DEVELOPMENT (Django REST)
 --------------------------------------------------
 
@@ -153,6 +133,7 @@ PHASE 0: PROJECT FOUNDATION
 - Set up custom Agent model in `users` app
 - Removed conflicting `core` app
 - Resolved initial migration conflicts
+--------------------------------------------------
 
 PHASE 1: APP ARCHITECTURE & ROUTING
 --------------------------------------------------
@@ -169,3 +150,25 @@ Frontend:
 - Configured React Router for `/leads`, `/contracts`, `/settings`
 
 Deliverable: Routed layout works with navigation between placeholder pages
+--------------------------------------------------
+
+PHASE 2: DATA MODELING
+--------------------------------------------------
+
+Goal: Define and migrate all Django models
+
+Models to create:
+x Agent 
+- Lead (name, contact, property, status, agent FK)
+- Contract (PDF upload, status, linked to Lead)
+- Optional: Task, Note, ActivityLog
+
+Steps:
+- Add fields and relationships to models
+- Add model `choices` for status fields
+- Register models in Django admin
+- Run `makemigrations` and `migrate`
+
+Deliverable: Models are migrated and visible in admin
+--------------------------------------------------
+
