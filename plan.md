@@ -1,23 +1,6 @@
 RealSync Development Plan – Solo Developer Roadmap
 ==================================================
 
-PHASE 3: API DEVELOPMENT (Django REST)
---------------------------------------------------
-
-Goal: Build RESTful API for each model
-
-Steps:
-- Create serializers for Agent, Lead, Contract
-- Use ViewSets and Django REST Router
-- Expose endpoints like:
-    GET /leads/
-    POST /leads/
-    PATCH /leads/:id
-    GET /contracts/
-- Add permissions or authentication decorators (optional)
-
-Deliverable: Working CRUD endpoints for each resource
-
 
 PHASE 4: FRONTEND FEATURES
 --------------------------------------------------
@@ -170,5 +153,23 @@ Steps:
 - Run `makemigrations` and `migrate`
 
 Deliverable: Models are migrated and visible in admin
+--------------------------------------------------
+
+PHASE 3: API DEVELOPMENT (Django REST)
+--------------------------------------------------
+
+Goal: Build RESTful API for each model
+
+Steps:
+- Create serializers for Agent, Lead, Contract
+- Use ViewSets and Django REST Router
+- Expose endpoints like:
+    GET /leads/
+    POST /leads/
+    PATCH /leads/:id
+    GET /contracts/
+- Add permissions or authentication decorators (optional)
+
+Deliverable: Working CRUD endpoints for each resource
 --------------------------------------------------
 
