@@ -32,3 +32,8 @@ class LeadAPITest(TestCase):
         }
         response = self.client.post("/api/leads/", data)
         self.assertEqual(response.status_code, 201)
+
+    def test_get_single_lead(self):
+        response = self.client.get(f"/api/leads/{self.lead.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], self.lead.id)

@@ -41,3 +41,8 @@ class ContractAPITest(TestCase):
         response = self.client.post("/api/contracts/", data, format="multipart")
         print("Create contract error:", response.data)
         self.assertEqual(response.status_code, 201)
+    
+    def test_get_single_contract(self):
+        response = self.client.get(f"/api/contracts/{self.contract.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], self.contract.id)
