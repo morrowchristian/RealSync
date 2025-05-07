@@ -1,3 +1,79 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react-swc'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.5.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react-swc": "^3.9.0",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.1",
+    "tailwindcss-cli": "^0.1.2",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.30.1",
+    "vite": "^6.3.5"
+  }
+}
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+}
 {
   "name": "frontend",
   "version": "0.0.0",
@@ -11,8 +87,7 @@
         "axios": "^1.9.0",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "react-router-dom": "^7.5.3",
-        "react-toastify": "^11.0.5"
+        "react-router-dom": "^7.5.3"
       },
       "devDependencies": {
         "@eslint/js": "^9.25.0",
@@ -2060,15 +2135,6 @@
       },
       "engines": {
         "node": ">= 6"
-      }
-    },
-    "node_modules/clsx": {
-      "version": "2.1.1",
-      "resolved": "https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz",
-      "integrity": "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==",
-      "license": "MIT",
-      "engines": {
-        "node": ">=6"
       }
     },
     "node_modules/color": {
@@ -4536,19 +4602,6 @@
         "node": ">=18"
       }
     },
-    "node_modules/react-toastify": {
-      "version": "11.0.5",
-      "resolved": "https://registry.npmjs.org/react-toastify/-/react-toastify-11.0.5.tgz",
-      "integrity": "sha512-EpqHBGvnSTtHYhCPLxML05NLY2ZX0JURbAdNYa6BUkk+amz4wbKBQvoKQAB0ardvSarUBuY4Q4s1sluAzZwkmA==",
-      "license": "MIT",
-      "dependencies": {
-        "clsx": "^2.1.1"
-      },
-      "peerDependencies": {
-        "react": "^18 || ^19",
-        "react-dom": "^18 || ^19"
-      }
-    },
     "node_modules/read-cache": {
       "version": "1.0.0",
       "resolved": "https://registry.npmjs.org/read-cache/-/read-cache-1.0.0.tgz",
@@ -5995,4 +6048,540 @@
       }
     }
   }
+}
+// frontend/src/components/ContractForm.tsx
+import { useState, useEffect } from 'react';
+import { createContract, updateContract } from '../api/contracts';
+
+interface ContractFormProps {
+  initialData?: any;
+  leads: any[];
+  mode: 'create' | 'edit';
+  onSuccess: () => void;
+}
+
+export default function ContractForm({ initialData, leads, mode, onSuccess }: ContractFormProps) {
+  const [status, setStatus] = useState('pending');
+  const [leadId, setLeadId] = useState<number>(leads[0]?.id || 1);
+  const [file, setFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (initialData) {
+      setStatus(initialData.status);
+      setLeadId(initialData.lead);
+    }
+  }, [initialData]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append('status', status);
+      formData.append('lead', leadId.toString());
+      if (file) {
+        formData.append('document', file);
+      }
+
+      if (mode === 'create') {
+        await createContract(formData);
+      } else {
+        await updateContract(initialData.id, formData);
+      }
+
+      onSuccess();
+    } catch (err) {
+      console.error('Error submitting contract:', err);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 p-4">
+      <select
+        name="lead"
+        value={leadId}
+        onChange={(e) => setLeadId(Number(e.target.value))}
+        className="w-full p-2 border rounded"
+      >
+        {leads.map((lead) => (
+          <option key={lead.id} value={lead.id}>
+            {lead.full_name}
+          </option>
+        ))}
+      </select>
+
+      <select
+        name="status"
+        value={status}
+        onChange={(e) => setStatus(e.target.value)}
+        className="w-full p-2 border rounded"
+      >
+        <option value="pending">Pending</option>
+        <option value="signed">Signed</option>
+        <option value="voided">Voided</option>
+      </select>
+
+      <input
+        type="file"
+        name="document"
+        accept=".pdf"
+        onChange={handleFileChange}
+        className="w-full p-2 border rounded"
+      />
+
+      <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded">
+        {mode === 'create' ? 'Create Contract' : 'Update Contract'}
+      </button>
+    </form>
+  );
+}
+// frontend/src/components/ui/Modal.tsx
+import React from 'react';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  children: React.ReactNode;
+}
+
+export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white rounded p-6 w-full max-w-lg shadow-lg">
+        {title && <h2 className="text-xl font-bold mb-4">{title}</h2>}
+        {children}
+        <div className="text-right mt-4">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-500 text-white rounded">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+// frontend/src/components/LeadForm.tsx
+import { useState, useEffect } from 'react';
+import { createLead, updateLead } from '../api/leads';
+
+interface LeadFormProps {
+  initialData?: any;
+  mode: 'create' | 'edit';
+  onSuccess: () => void;
+}
+
+export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps) {
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    property_address: '',
+    status: 'new',
+    agent: 1, // hardcoded for now
+  });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (mode === 'create') {
+        await createLead(formData);
+      } else {
+        await updateLead(initialData.id, formData);
+      }
+      onSuccess();
+    } catch (err) {
+      console.error('Error submitting form:', err);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 p-4">
+      <input
+        type="text"
+        name="full_name"
+        placeholder="Full Name"
+        value={formData.full_name}
+        onChange={handleChange}
+        className="w-full p-2 border rounded"
+        required
+      />
+      <input
+        type="email"
+        name="email"
+        placeholder="Email"
+        value={formData.email}
+        onChange={handleChange}
+        className="w-full p-2 border rounded"
+        required
+      />
+      <input
+        type="tel"
+        name="phone"
+        placeholder="Phone"
+        value={formData.phone}
+        onChange={handleChange}
+        className="w-full p-2 border rounded"
+      />
+      <input
+        type="text"
+        name="property_address"
+        placeholder="Property Address"
+        value={formData.property_address}
+        onChange={handleChange}
+        className="w-full p-2 border rounded"
+        required
+      />
+      <select
+        name="status"
+        value={formData.status}
+        onChange={handleChange}
+        className="w-full p-2 border rounded"
+      >
+        <option value="new">New</option>
+        <option value="contacted">Contacted</option>
+        <option value="qualified">Qualified</option>
+        <option value="lost">Lost</option>
+        <option value="converted">Converted</option>
+      </select>
+
+      <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">
+        {mode === 'create' ? 'Create Lead' : 'Update Lead'}
+      </button>
+    </form>
+  );
+}
+// frontend/src/utils/validators.ts// frontend/src/utils/formatDate.ts// frontend/src/types/user.ts// frontend/src/types/lead.ts// frontend/src/main.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+);
+// src/api/contracts.ts
+import api from './axios';
+
+export async function fetchContracts() {
+    return (await api.get('contracts/')).data;
+  }
+  
+  export async function fetchContract(id: number) {
+    return (await api.get(`contracts/${id}/`)).data;
+  }
+  
+  export async function createContract(data: any) {
+    return (await api.post('contracts/', data)).data;
+  }
+  
+  export async function updateContract(id: number, data: any) {
+    return (await api.put(`contracts/${id}/`, data)).data;
+  }
+  
+  export async function deleteContract(id: number) {
+    return (await api.delete(`contracts/${id}/`)).data;
+  }
+  // src/api/leads.ts
+import api from './axios';
+
+export async function fetchLeads() {
+    return (await api.get('leads/')).data;
+  }
+  
+  export async function fetchLead(id: number) {
+    return (await api.get(`leads/${id}/`)).data;
+  }
+  
+  export async function createLead(data: any) {
+    return (await api.post('leads/', data)).data;
+  }
+  
+  export async function updateLead(id: number, data: any) {
+    return (await api.put(`leads/${id}/`, data)).data;
+  }
+  
+  export async function deleteLead(id: number) {
+    return (await api.delete(`leads/${id}/`)).data;
+  }
+  
+  // src/api/axios.ts
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api/',
+  withCredentials: false,
+});
+
+export default api;
+// frontend/src/layouts/AppLayout.tsx
+import { Outlet, Link } from 'react-router-dom';
+
+export default function AppLayout() {
+  return (
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-800 text-white p-6 space-y-4">
+        <h2 className="text-xl font-semibold">RealSync</h2>
+        <nav className="flex flex-col space-y-2">
+          <Link to="/leads" className="hover:underline text-gray-300 hover:text-white">Leads</Link>
+          <Link to="/contracts" className="hover:underline text-gray-300 hover:text-white">Contracts</Link>
+          <Link to="/settings" className="hover:underline text-gray-300 hover:text-white">Settings</Link>
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 bg-gray-50">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+// frontend/src/App.tsx
+import { Routes, Route } from 'react-router-dom';
+import AppLayout from './layouts/AppLayout';
+import LeadsPage from './pages/LeadsPage';
+import ContractsPage from './pages/ContractsPage';
+import SettingsPage from './pages/SettingsPage';
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<AppLayout />}>
+        <Route path="leads" element={<LeadsPage />} />
+        <Route path="contracts" element={<ContractsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+      </Route>
+    </Routes>
+    
+  );
+}
+// frontend/src/vite-env.d.ts
+/// <reference types="vite/client" />
+/* frontend/src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+// frontend/src/pages/LeadsPage.tsx
+import { useEffect, useState } from 'react';
+import { fetchLeads, fetchLead } from '../api/leads';
+import LeadForm from '../components/LeadForm';
+import Modal from '../components/ui/Modal';
+
+export default function LeadsPage() {
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+
+  useEffect(() => {
+    fetchLeads()
+      .then(data => setLeads(data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredLeads = leads.filter(lead =>
+    lead.status.toLowerCase().includes(search.toLowerCase()) ||
+    lead.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    lead.id.toString().includes(search)
+  );
+
+  const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = Number(e.target.value);
+    fetchLead(id).then(setSelectedLead);
+  };
+
+  if (loading) return <p className="p-4">Loading leads...</p>;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="sticky top-0 bg-white pb-2">
+        <input
+          type="text"
+          placeholder="Search leads by ID, name, or status..."
+          className="w-full p-2 mb-2 border rounded-md"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <select
+          className="w-full p-2 border rounded-md"
+          onChange={handleSelect}
+          defaultValue=""
+        >
+          <option value="" disabled>Select a lead</option>
+          {filteredLeads.map((lead) => (
+            <option key={lead.id} value={lead.id}>
+              #{lead.id} – {lead.full_name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedLead && (
+        <div className="p-4 bg-gray-100 rounded shadow">
+          <h2 className="text-xl font-bold mb-2">
+            Lead #{selectedLead.id}: {selectedLead.full_name}
+          </h2>
+          <p>Email: {selectedLead.email}</p>
+          <p>Phone: {selectedLead.phone}</p>
+          <p>Property: {selectedLead.property_address}</p>
+          <p>Status: {selectedLead.status}</p>
+        </div>
+      )}
+
+      <h1 className="text-2xl font-bold mt-4">All Leads</h1>
+      <ul className="space-y-2">
+        {leads.map((lead) => (
+          <li key={lead.id} className="p-4 bg-white rounded shadow">
+            <p className="font-semibold">{lead.full_name}</p>
+            <p className="text-sm text-gray-600">{lead.property_address}</p>
+            <p className="text-sm text-gray-500">Status: {lead.status}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+// frontend/src/pages/SettingsPage.tsx
+export default function SettingsPage() {
+    return <h1 className="text-2xl font-semibold">Settings</h1>;
+  }
+  // frontend/src/pages/ContractsPage.tsx
+import { useEffect, useState } from 'react';
+import { fetchContracts, fetchContract } from '../api/contracts';
+
+export default function ContractsPage() {
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selectedContract, setSelectedContract] = useState<any | null>(null);
+
+  useEffect(() => {
+    fetchContracts()
+      .then(data => setContracts(data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredContracts = contracts.filter(contract =>
+    contract.status.toLowerCase().includes(search.toLowerCase()) ||
+    contract.id.toString().includes(search)
+  );
+
+  const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = Number(e.target.value);
+    fetchContract(id).then(setSelectedContract);
+  };
+
+  if (loading) return <p className="p-4">Loading contracts...</p>;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="sticky top-0 bg-white pb-2">
+        <input
+          type="text"
+          placeholder="Search contracts by ID or status..."
+          className="w-full p-2 mb-2 border rounded-md"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <select
+          className="w-full p-2 border rounded-md"
+          onChange={handleSelect}
+          defaultValue=""
+        >
+          <option value="" disabled>Select a contract</option>
+          {filteredContracts.map((contract) => (
+            <option key={contract.id} value={contract.id}>
+              #{contract.id} - {contract.status}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedContract && (
+        <div className="p-4 bg-gray-100 rounded shadow">
+          <h2 className="text-xl font-bold mb-2">
+            Contract #{selectedContract.id}
+          </h2>
+          <p>Status: {selectedContract.status}</p>
+          <a
+            href={selectedContract.document}
+            className="text-blue-500 underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View PDF
+          </a>
+        </div>
+      )}
+
+      <h1 className="text-2xl font-bold mt-4">All Contracts</h1>
+      <ul className="space-y-2">
+        {contracts.map((contract) => (
+          <li key={contract.id} className="p-4 bg-white rounded shadow">
+            <p className="font-semibold">Status: {contract.status}</p>
+            <p className="text-sm text-gray-600">Lead ID: {contract.lead}</p>
+            <a
+              href={contract.document}
+              className="text-blue-500 underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View PDF
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+// frontend/src/layouts/AuthLayout.tsx{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
 }

@@ -7,13 +7,15 @@ import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   return (
+    // --------------------------- Route Tree ---------------------------
     <Routes>
+      {/* Shared layout wrapper for all nested pages */}
       <Route path="/" element={<AppLayout />}>
+        {/* Individual page routes */}
         <Route path="leads" element={<LeadsPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
-    
   );
 }
