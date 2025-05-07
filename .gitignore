@@ -1,26 +1,45 @@
-# Python
-env/
-__pycache__/
+# === Python / Django ===
 *.pyc
+__pycache__/
+*.pyo
+*.pyd
+env/
+venv/
+ENV/
+env.bak/
 *.sqlite3
+*.log
 
-# Node
+# If using Django secret keys or env config
+.env
+.env.*
+
+# === VS Code ===
+.vscode/
+
+# === React / Vite ===
 node_modules/
 dist/
+build/
+*.local
 
-# Django
-*.log
-*.pot
-*.py[cod]
-db.sqlite3
-media/
-staticfiles/
+# Tailwind JIT cache
+.tailwind/
 
-# React + Vite
-.vite/
-.env
-
-# OS/IDE
+# === System files ===
 .DS_Store
+Thumbs.db
+
+# === Pytest ===
+htmlcov/
+.coverage
+.cache/
+.pytest_cache/
+
+# === Test database ===
+test.sqlite3
+
+# === Misc ===
+*.bak
 *.swp
-.vscode/
+*.swo
