@@ -1,3 +1,5 @@
+# backend/backend/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -7,9 +9,9 @@ from users.views import AgentViewSet
 
 # Router for API endpoints
 router = DefaultRouter()
-router.register(r'leads', LeadViewSet)
-router.register(r'contracts', ContractViewSet)
-router.register(r'agents', AgentViewSet)
+router.register(r'leads', LeadViewSet, basename='lead')
+router.register(r'contracts', ContractViewSet, basename='contract')
+router.register(r'agents', AgentViewSet, basename='agent')
 
 # URL patterns
 urlpatterns = [

@@ -1,4 +1,4 @@
-#contracts/tests.py
+# backend/contracts/tests.py
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
@@ -46,3 +46,15 @@ class ContractAPITest(TestCase):
         response = self.client.get(f"/api/contracts/{self.contract.id}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.contract.id)
+
+    def test_archive_contract(self):
+        response = self.client.post(f"/api/contracts/{self.contract.id}/archive/")
+        self.assertEqual(response.status_code, 200)
+        self.contract.refresh_from_db()
+        self.assertTrue(self.contract.is_archived)
+
+    def test_signed_contract_cannot_be_deleted(self):
+        self.contract.status = 'signed'
+        self.contract.save()
+        response = self.client.delete(f"/api/contracts/{self.contract.id}/")
+        self.assertEqual(response.status_code, 403)

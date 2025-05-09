@@ -18,6 +18,12 @@ export default function AppLayout() {
             Leads
           </Link>
           <Link
+            to="/leads/archived"
+            className="hover:underline text-gray-300 hover:text-white"
+          >
+            Archived Leads
+          </Link>
+          <Link
             to="/contracts"
             className="hover:underline text-gray-300 hover:text-white"
           >

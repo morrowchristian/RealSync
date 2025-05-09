@@ -19,6 +19,7 @@ class Lead(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
     agent = models.ForeignKey(Agent, on_delete=models.CASCADE, related_name='leads')
     created_at = models.DateTimeField(default=timezone.now)
+    is_archived = models.BooleanField(default=False)
 
     def __str__(self):
         return self.full_name

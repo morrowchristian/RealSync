@@ -1,8 +1,12 @@
-// src/pages/LeadsPage.tsx
+// frontend/src/pages/LeadsPage.tsx
 import { useEffect, useState } from 'react';
 import { fetchLeads, fetchLead, deleteLead } from '../api/leads';
 import LeadForm from '../components/forms/LeadForm';
 import Modal from '../components/ui/Modal';
+import { toast } from 'react-toastify';
+import api from '../api/axios';
+import StatusTabs from '../components/ui/StatusTabs';
+
 
 export default function LeadsPage() {
   // --------------------------- State ---------------------------
@@ -12,6 +16,9 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const statusOptions = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
+  const [statusFilter, setStatusFilter] = useState('All');
+
 
   // --------------------------- Effects ---------------------------
   useEffect(() => {
@@ -21,15 +28,34 @@ export default function LeadsPage() {
   // --------------------------- Handlers ---------------------------
   const refetchLeads = () => fetchLeads().then(setLeads);
 
-  const filteredLeads = leads.filter(lead =>
-    lead.status.toLowerCase().includes(search.toLowerCase()) ||
-    lead.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    lead.id.toString().includes(search)
-  );
+  const filteredLeads = leads.filter((lead) => {
+    const matchesStatus = statusFilter === 'All' || lead.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesSearch =
+      lead.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      lead.status.toLowerCase().includes(search.toLowerCase()) ||
+      lead.id.toString().includes(search);
+    return matchesStatus && matchesSearch;
+  });  
 
   const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = Number(e.target.value);
     fetchLead(id).then(setSelectedLead);
+  };
+
+  const handleArchive = async () => {
+    if (!selectedLead) return;
+    const confirmArchive = confirm(`Archive Lead #${selectedLead.id}?`);
+    if (!confirmArchive) return;
+    try {
+      await api.post(`/leads/${selectedLead.id}/archive/`);
+      toast.success('Lead archived');
+      setModalOpen(false);
+      setEditMode(false);
+      setSelectedLead(null);
+      refetchLeads();
+    } catch (error) {
+      toast.error('Failed to archive lead');
+    }
   };
 
   if (loading) return <p className="p-4">Loading leads...</p>;
@@ -62,6 +88,12 @@ export default function LeadsPage() {
             </button>
           )}
         </div>
+
+        <StatusTabs
+          statuses={statusOptions}
+          activeStatus={statusFilter}
+          onSelect={setStatusFilter}
+        />
 
         <input
           type="text"
@@ -128,18 +160,10 @@ export default function LeadsPage() {
 
         {editMode && selectedLead && (
           <button
-            onClick={async () => {
-              if (confirm('Are you sure you want to delete this lead?')) {
-                await deleteLead(selectedLead.id);
-                setModalOpen(false);
-                setEditMode(false);
-                setSelectedLead(null);
-                refetchLeads();
-              }
-            }}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
+            onClick={handleArchive}
+            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
           >
-            🗑️ Delete Lead
+            🗃️ Archive Lead
           </button>
         )}
       </Modal>

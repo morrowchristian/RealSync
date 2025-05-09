@@ -1,4 +1,4 @@
-#leads/tests.py
+# backend/leads/tests.py
 from django.test import TestCase
 from rest_framework.test import APIClient
 from users.models import Agent
@@ -37,3 +37,10 @@ class LeadAPITest(TestCase):
         response = self.client.get(f"/api/leads/{self.lead.id}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.lead.id)
+
+    def test_archive_lead(self):
+        response = self.client.post(f"/api/leads/{self.lead.id}/archive/")
+        self.assertEqual(response.status_code, 200)
+        self.lead.refresh_from_db()
+        self.assertTrue(self.lead.is_archived)
+        

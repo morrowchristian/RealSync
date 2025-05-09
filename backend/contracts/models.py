@@ -13,6 +13,7 @@ class Contract(models.Model):
     document = models.FileField(upload_to='contracts/')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(default=timezone.now)
-
+    is_archived = models.BooleanField(default=False)
+    
     def __str__(self):
         return f"Contract for {self.lead.full_name} - {self.status}"

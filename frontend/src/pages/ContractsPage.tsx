@@ -1,9 +1,12 @@
-// src/pages/ContractsPage.tsx
+// frontend/src/pages/ContractsPage.tsx
 import { useEffect, useState } from 'react';
-import { fetchContracts, fetchContract, deleteContract } from '../api/contracts';
+import { fetchContracts, fetchContract } from '../api/contracts';
 import { fetchLeads } from '../api/leads';
 import ContractForm from '../components/forms/ContractForm';
 import Modal from '../components/ui/Modal';
+import StatusTabs from '../components/ui/StatusTabs';
+import { toast } from 'react-toastify';
+import api from '../api/axios';
 
 export default function ContractsPage() {
   // --------------------------- State ---------------------------
@@ -14,8 +17,16 @@ export default function ContractsPage() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState('All');
 
-  // --------------------------- Effects ---------------------------
+  const statusOptions = ['All', 'Pending', 'Signed', 'Voided'];
+
+  // --------------------------- Fetch ---------------------------
+  const refetchContracts = () =>
+    fetchContracts()
+      .then(data => setContracts(data))
+      .finally(() => setLoading(false));
+
   useEffect(() => {
     refetchContracts();
   }, []);
@@ -24,30 +35,44 @@ export default function ContractsPage() {
     fetchLeads().then(setLeads);
   }, []);
 
-  // --------------------------- Handlers ---------------------------
-  const refetchContracts = () =>
-    fetchContracts()
-      .then(data => setContracts(data))
-      .finally(() => setLoading(false));
-
-  const filteredContracts = contracts.filter(contract =>
-    contract.status.toLowerCase().includes(search.toLowerCase()) ||
-    contract.id.toString().includes(search)
-  );
+  // --------------------------- Filter ---------------------------
+  const filteredContracts = contracts.filter(contract => {
+    const matchesStatus =
+      statusFilter === 'All' || contract.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesSearch =
+      contract.status.toLowerCase().includes(search.toLowerCase()) ||
+      contract.id.toString().includes(search);
+    return matchesStatus && matchesSearch;
+  });
 
   const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = Number(e.target.value);
     fetchContract(id).then(setSelectedContract);
   };
 
+  const handleArchive = async () => {
+    if (!selectedContract) return;
+    const confirmArchive = confirm(`Archive Contract #${selectedContract.id}?`);
+    if (!confirmArchive) return;
+    try {
+      await api.post(`/contracts/${selectedContract.id}/archive/`);
+      toast.success('Contract archived');
+      setModalOpen(false);
+      setEditMode(false);
+      setSelectedContract(null);
+      refetchContracts();
+    } catch (error) {
+      toast.error('Failed to archive contract');
+    }
+  };
+
+  // --------------------------- UI Render ---------------------------
   if (loading) return <p className="p-4">Loading contracts...</p>;
 
-  // --------------------------- Render ---------------------------
   return (
     <div className="p-4 space-y-4">
-      {/* --------------------------- Controls --------------------------- */}
-      <div className="sticky top-0 bg-white pb-2">
-        <div className="flex gap-2 mb-2">
+      <div className="sticky top-0 bg-white pb-2 space-y-2">
+        <div className="flex gap-2">
           <button
             onClick={() => {
               setSelectedContract(null);
@@ -72,10 +97,17 @@ export default function ContractsPage() {
           )}
         </div>
 
+        {/* ✅ Status filter tabs */}
+        <StatusTabs
+          statuses={statusOptions}
+          activeStatus={statusFilter}
+          onSelect={setStatusFilter}
+        />
+
         <input
           type="text"
           placeholder="Search contracts by ID or status..."
-          className="w-full p-2 mb-2 border rounded-md"
+          className="w-full p-2 border rounded-md"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -94,7 +126,6 @@ export default function ContractsPage() {
         </select>
       </div>
 
-      {/* --------------------------- Selected Contract Details --------------------------- */}
       {selectedContract && (
         <div className="p-4 bg-gray-100 rounded shadow">
           <h2 className="text-xl font-bold mb-2">
@@ -112,10 +143,9 @@ export default function ContractsPage() {
         </div>
       )}
 
-      {/* --------------------------- Contract List --------------------------- */}
       <h1 className="text-2xl font-bold mt-4">All Contracts</h1>
       <ul className="space-y-2">
-        {contracts.map((contract) => (
+        {filteredContracts.map((contract) => (
           <li key={contract.id} className="p-4 bg-white rounded shadow">
             <p className="font-semibold">Status: {contract.status}</p>
             <p className="text-sm text-gray-600">Lead ID: {contract.lead}</p>
@@ -131,7 +161,6 @@ export default function ContractsPage() {
         ))}
       </ul>
 
-      {/* --------------------------- Modal for Create/Edit --------------------------- */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
@@ -150,18 +179,10 @@ export default function ContractsPage() {
 
         {editMode && selectedContract && (
           <button
-            onClick={async () => {
-              if (confirm('Are you sure you want to delete this contract?')) {
-                await deleteContract(selectedContract.id);
-                setModalOpen(false);
-                setEditMode(false);
-                setSelectedContract(null);
-                refetchContracts();
-              }
-            }}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
+            onClick={handleArchive}
+            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
           >
-            🗑️ Delete Contract
+            🗃️ Archive Contract
           </button>
         )}
       </Modal>
