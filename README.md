@@ -38,8 +38,8 @@ A solo-developed, full-stack client onboarding and management dashboard using Dj
 
 - Defined and migrated models:
   - ✅ `Agent` (custom user)
-  - ✅ `Lead` (name, contact info, property address, status choices, FK to Agent)
-  - ✅ `Contract` (PDF upload, status choices, FK to Lead)
+  - ✅ `Lead` (name, contact info, property address, status choices, FK to Agent, soft-delete flag)
+  - ✅ `Contract` (PDF upload, status choices, FK to Lead, soft-delete flag)
 - Used `choices` for statuses on Lead and Contract models
 - Registered models in Django admin
 - Confirmed visibility and admin functionality
@@ -55,44 +55,50 @@ A solo-developed, full-stack client onboarding and management dashboard using Dj
 - Verified API endpoints:
   - `GET/POST /api/leads/`
   - `GET/POST /api/contracts/`
+  - Added custom actions: `/leads/<id>/archive/`, `/contracts/<id>/archive/`
+  - Prevented deletion of signed contracts
 - Implemented and passed all backend tests
   - Used `SimpleUploadedFile` to test contract uploads
 
-✅ *Deliverable:* Fully tested and working API endpoints with CRUD support
+✅ *Deliverable:* Fully tested and working API endpoints with CRUD + archive support
 
 ### PHASE 4: FRONTEND FEATURES
 
 **Leads Page:**
 - Fetched and displayed lead list from API
-- Added searchable dropdown at top (sticky UI)
-- Enabled selection of individual lead with details view
+- Added searchable dropdown + individual detail preview
+- Enabled lead creation and update via modal form
 
 **Contracts Page:**
-- Fetched and displayed contracts with status and document
-- Enabled document links and display with fetch hooks
+- Fetched and displayed contract list with linked documents
+- Enabled contract upload/update via modal form
 
 **Frontend Utility:**
 - Created reusable API services for leads and contracts
-- Integrated Tailwind for responsive styling
-- Search, filter, and status tags added for better UX
+- Integrated Tailwind for styling
+- Added form validation, spinners, and toasts
+- Created modals, status tabs, conditional buttons, and archive actions
+- Added archived views with protected deletion
 
-✅ *Deliverable:* API-integrated React pages for leads and contracts
+✅ *Deliverable:* Functional Leads and Contracts dashboard with archive and edit flows
+
+### PHASE 5: FEATURE COMPLETION *(Completed)*
+
+- Created `LeadForm` and `ContractForm` components for CRUD
+- Added modal editing for leads and contracts
+- Implemented archive buttons with `/archive/` routes
+- Prevented deletion of signed contracts via backend guard
+- Built `ArchivedLeadsPage` and `ArchivedContractsPage`
+- Added conditional delete with double confirm for archived leads
+- Implemented status filter tabs (e.g., `StatusTabs` component)
+- Added toast notifications and UI feedback loaders
+- All backend and form-related tests pass
+
+✅ *Deliverable:* Polished CRUD/Archive interface with validations and data safety guards
 
 ---
 
 ## 🚧 UPCOMING PHASES
-
-### PHASE 5: FEATURE COMPLETION *(Current Phase)*
-
-- Create `LeadForm` and `ContractForm` components (shared for create/update)
-- Add modal-based or inline editing UI using `Dialog` or `Drawer`
-- Enable file upload via `FormData` with PDF preview
-- Create reusable hooks (`useLeads`, `useContracts`) to manage API calls
-- Add Delete functionality with confirmation dialogs
-- Implement toast notifications (e.g., `react-hot-toast`) for actions
-- Add spinners/loading states during submission and fetch
-
-📌 *Deliverable:* Fully functional CRUD forms and feedback mechanisms for Leads & Contracts
 
 ### PHASE 6: AUTHENTICATION
 
@@ -104,7 +110,7 @@ A solo-developed, full-stack client onboarding and management dashboard using Dj
 
 ### PHASE 7: TESTING & ERROR HANDLING
 
-- Add Django unit tests for all views and models
+- Add Django unit tests for new archive and auth views
 - Add frontend error boundaries and toast messages
 - Improve API failure UX (fallbacks, retries)
 
@@ -139,20 +145,21 @@ A solo-developed, full-stack client onboarding and management dashboard using Dj
 ### Frontend (`/frontend/src/`)
 - api/ → Axios instance + API services
 - assets/ → Static assets like SVGs
-- components/ → Reusable components (e.g., LeadCard, LeadForm, Modal)
+- components/
+  - forms/ → LeadForm, ContractForm
+  - ui/ → Modal, StatusTabs
 - layouts/ → Shared layouts (AppLayout, AuthLayout)
-- pages/ → LeadsPage, ContractsPage, SettingsPage
+- pages/ → LeadsPage, ContractsPage, ArchivedLeadsPage, ArchivedContractsPage, SettingsPage
 - types/ → TypeScript interfaces for models
 - utils/ → Formatting, validation, helpers
 - hooks/ → Custom hooks (e.g., useLeads, useContracts)
 - main.tsx → React entry point
 
-
 ### Backend (`/backend/`)
 - backend/ → Django project settings, URLs, wsgi/asgi
 - users/ → Custom Agent user model, admin, serializers
 - leads/ → Lead model, serializers, views, tests
-- contracts/ → Contract model, uploads, serializers, views
+- contracts/ → Contract model, uploads, serializers, views, tests
 - manage.py → Django CLI
 - db.sqlite3 → SQLite dev DB (ignored in Git)
 
@@ -160,9 +167,8 @@ A solo-developed, full-stack client onboarding and management dashboard using Dj
 
 - .env/ → Python virtual environment
 - node_modules/ → Frontend dependencies
-- pycache/ → Python bytecode cache
+- __pycache__/ → Python bytecode cache
 - db.sqlite3 → Local dev database
-
 
 ---
 
@@ -171,5 +177,7 @@ A solo-developed, full-stack client onboarding and management dashboard using Dj
 - All backend tests pass using `python manage.py test`
 - Frontend and backend are decoupled and communicate via REST
 - Uses `multipart/form-data` for file uploads
+- Archive logic prevents accidental deletion
+- Signed contracts cannot be deleted
+- Hooks and components are modularized for scaling to AI features and open house check-ins
 - Code committed to GitHub after every phase milestone
-- Hooks and components are modularized for scaling to additional features like AI and open house check-ins
