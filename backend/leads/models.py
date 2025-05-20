@@ -1,4 +1,4 @@
-# leads/models.py
+# backend/leads/models.py
 from django.db import models
 from users.models import Agent
 from django.utils import timezone

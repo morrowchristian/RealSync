@@ -6,19 +6,23 @@ from .models import Contract
 from .serializers import ContractSerializer
 
 class ContractViewSet(viewsets.ModelViewSet):
-    # Only return non-archived contracts by default
     queryset = Contract.objects.filter(is_archived=False)
     serializer_class = ContractSerializer
 
-    # Custom action to soft-archive a contract instead of deleting
     @action(detail=True, methods=['post'])
     def archive(self, request, pk=None):
         contract = self.get_object()
         contract.is_archived = True
         contract.save()
         return Response({'status': 'archived'})
+    
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        contract = self.get_object()
+        contract.is_archived = False
+        contract.save()
+        return Response({'status': 'restored'})
 
-    # Override default delete to block removal of signed contracts
     def destroy(self, request, *args, **kwargs):
         contract = self.get_object()
         if contract.status.lower() == 'signed':

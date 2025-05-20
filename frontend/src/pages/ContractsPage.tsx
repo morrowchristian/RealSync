@@ -1,30 +1,35 @@
 // frontend/src/pages/ContractsPage.tsx
 import { useEffect, useState } from 'react';
-import { fetchContracts, fetchContract } from '../api/contracts';
+import {
+  fetchContracts,
+  fetchContract,
+} from '../api/contracts';
 import { fetchLeads } from '../api/leads';
 import ContractForm from '../components/forms/ContractForm';
 import Modal from '../components/ui/Modal';
 import StatusTabs from '../components/ui/StatusTabs';
+import EmptyState from '../components/ui/EmptyState';
+import Spinner from '../components/ui/Spinner';
 import { toast } from 'react-toastify';
 import api from '../api/axios';
+import type { Contract } from '../types/contract';
+import type { Lead } from '../types/lead';
 
 export default function ContractsPage() {
-  // --------------------------- State ---------------------------
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [selectedContract, setSelectedContract] = useState<any | null>(null);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [leads, setLeads] = useState<any[]>([]);
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [search, setSearch] = useState<string>('');
+  const [isModalOpen, setModalOpen] = useState<boolean>(false);
+  const [editMode, setEditMode] = useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = useState<string>('All');
 
   const statusOptions = ['All', 'Pending', 'Signed', 'Voided'];
 
-  // --------------------------- Fetch ---------------------------
   const refetchContracts = () =>
     fetchContracts()
-      .then(data => setContracts(data))
+      .then(setContracts)
       .finally(() => setLoading(false));
 
   useEffect(() => {
@@ -35,8 +40,7 @@ export default function ContractsPage() {
     fetchLeads().then(setLeads);
   }, []);
 
-  // --------------------------- Filter ---------------------------
-  const filteredContracts = contracts.filter(contract => {
+  const filteredContracts = contracts.filter((contract) => {
     const matchesStatus =
       statusFilter === 'All' || contract.status.toLowerCase() === statusFilter.toLowerCase();
     const matchesSearch =
@@ -66,8 +70,7 @@ export default function ContractsPage() {
     }
   };
 
-  // --------------------------- UI Render ---------------------------
-  if (loading) return <p className="p-4">Loading contracts...</p>;
+  if (loading) return <Spinner />;
 
   return (
     <div className="p-4 space-y-4">
@@ -97,7 +100,6 @@ export default function ContractsPage() {
           )}
         </div>
 
-        {/* ✅ Status filter tabs */}
         <StatusTabs
           statuses={statusOptions}
           activeStatus={statusFilter}
@@ -144,22 +146,26 @@ export default function ContractsPage() {
       )}
 
       <h1 className="text-2xl font-bold mt-4">All Contracts</h1>
-      <ul className="space-y-2">
-        {filteredContracts.map((contract) => (
-          <li key={contract.id} className="p-4 bg-white rounded shadow">
-            <p className="font-semibold">Status: {contract.status}</p>
-            <p className="text-sm text-gray-600">Lead ID: {contract.lead}</p>
-            <a
-              href={contract.document}
-              className="text-blue-500 underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              View PDF
-            </a>
-          </li>
-        ))}
-      </ul>
+      {filteredContracts.length === 0 ? (
+        <EmptyState message="No contracts found." />
+      ) : (
+        <ul className="space-y-2">
+          {filteredContracts.map((contract) => (
+            <li key={contract.id} className="p-4 bg-white rounded shadow">
+              <p className="font-semibold">Status: {contract.status}</p>
+              <p className="text-sm text-gray-600">Lead ID: {contract.lead}</p>
+              <a
+                href={contract.document}
+                className="text-blue-500 underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View PDF
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <Modal
         isOpen={isModalOpen}

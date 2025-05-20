@@ -9,17 +9,22 @@ from .serializers import LeadSerializer
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
 
-    # Only return non-archived leads by default
     def get_queryset(self):
         return Lead.objects.filter(is_archived=False)
 
-    # Custom action to archive a lead
     @action(detail=True, methods=['post'])
     def archive(self, request, pk=None):
         lead = self.get_object()
         lead.is_archived = True
         lead.save()
         return Response({'status': 'archived'})
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        lead = self.get_object()
+        lead.is_archived = False
+        lead.save()
+        return Response({'status': 'restored'})
 
 def ping(request):
     return JsonResponse({"message": "pong"})

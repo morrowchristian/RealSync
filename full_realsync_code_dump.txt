@@ -1,0 +1,983 @@
+// src/pages/ArchivedContractsPage.tsx
+import { useEffect, useState } from 'react';
+import api from '../api/axios';
+import { toast } from 'react-toastify';
+import StatusTabs from '../components/ui/StatusTabs';
+
+export default function ArchivedContractsPage() {
+  // --------------------------- State ---------------------------
+  const [archivedContracts, setArchivedContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  const statusOptions = ['All', 'Pending', 'Signed', 'Voided'];
+
+  // --------------------------- Data Fetching ---------------------------
+  const fetchArchivedContracts = async () => {
+    try {
+      const allContracts = await api.get('contracts/?all=true');
+      const filtered = allContracts.data.filter((c: any) => c.is_archived);
+      setArchivedContracts(filtered);
+    } catch (err) {
+      toast.error('Failed to load archived contracts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --------------------------- Delete Handler ---------------------------
+  const handleDelete = async (contract: any) => {
+    if (contract.status === 'signed') {
+      toast.warn('Signed contracts cannot be deleted.');
+      return;
+    }
+
+    const confirmDelete = confirm(`Permanently delete Contract #${contract.id}? This cannot be undone.`);
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/contracts/${contract.id}/`);
+      toast.success('Contract permanently deleted');
+      fetchArchivedContracts();
+    } catch (err) {
+      toast.error('Failed to delete contract');
+    }
+  };
+
+  // --------------------------- Effects ---------------------------
+  useEffect(() => {
+    fetchArchivedContracts();
+  }, []);
+
+  const filteredContracts = archivedContracts.filter((c) => {
+    return statusFilter === 'All' || c.status.toLowerCase() === statusFilter.toLowerCase();
+  });
+
+  // --------------------------- UI Render ---------------------------
+  if (loading) return <p className="p-4">Loading archived contracts...</p>;
+
+  return (
+    <div className="p-4 space-y-4">
+      <h1 className="text-2xl font-bold">Archived Contracts</h1>
+
+      {/* ✅ Status Tabs */}
+      <StatusTabs
+        statuses={statusOptions}
+        activeStatus={statusFilter}
+        onSelect={setStatusFilter}
+      />
+
+      {filteredContracts.length === 0 ? (
+        <p className="text-gray-600">No archived contracts available.</p>
+      ) : (
+        <ul className="space-y-2">
+          {filteredContracts.map((contract) => (
+            <li key={contract.id} className="p-4 bg-white rounded shadow">
+              <p className="font-semibold">Status: {contract.status}</p>
+              <p className="text-sm text-gray-600">Lead ID: {contract.lead}</p>
+              <a
+                href={contract.document}
+                className="text-blue-500 underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View PDF
+              </a>
+              <button
+                onClick={() => handleDelete(contract)}
+                className="mt-2 px-4 py-1 bg-red-600 text-white rounded"
+              >
+                Delete Permanently
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+// src/pages/ArchivedLeadsPage.tsx
+import { useEffect, useState } from 'react';
+import api from '../api/axios';
+import { toast } from 'react-toastify';
+import StatusTabs from '../components/ui/StatusTabs';
+
+export default function ArchivedLeadsPage() {
+  // --------------------------- State ---------------------------
+  const [archivedLeads, setArchivedLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  const statusOptions = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
+
+  // --------------------------- Data Fetching ---------------------------
+  const fetchArchivedLeads = async () => {
+    try {
+      const allLeads = await api.get('leads/?all=true');
+      const filtered = allLeads.data.filter((lead: any) => lead.is_archived);
+      setArchivedLeads(filtered);
+    } catch (err) {
+      toast.error('Failed to load archived leads');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --------------------------- Delete Handler ---------------------------
+  const handleDelete = async (id: number) => {
+    const confirmDelete = confirm(`Permanently delete Lead #${id}? This cannot be undone.`);
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/leads/${id}/`);
+      toast.success('Lead permanently deleted');
+      fetchArchivedLeads();
+    } catch (err) {
+      toast.error('Failed to delete lead');
+    }
+  };
+
+  // --------------------------- Effects ---------------------------
+  useEffect(() => {
+    fetchArchivedLeads();
+  }, []);
+
+  const filteredLeads = archivedLeads.filter((lead) => {
+    return statusFilter === 'All' || lead.status.toLowerCase() === statusFilter.toLowerCase();
+  });
+
+  // --------------------------- UI Render ---------------------------
+  if (loading) return <p className="p-4">Loading archived leads...</p>;
+
+  return (
+    <div className="p-4 space-y-4">
+      <h1 className="text-2xl font-bold">Archived Leads</h1>
+
+      {/* ✅ Status Tabs */}
+      <StatusTabs
+        statuses={statusOptions}
+        activeStatus={statusFilter}
+        onSelect={setStatusFilter}
+      />
+
+      {filteredLeads.length === 0 ? (
+        <p className="text-gray-600">No archived leads available.</p>
+      ) : (
+        <ul className="space-y-2">
+          {filteredLeads.map((lead) => (
+            <li key={lead.id} className="p-4 bg-white rounded shadow">
+              <p className="font-semibold">{lead.full_name}</p>
+              <p className="text-sm text-gray-600">{lead.property_address}</p>
+              <p className="text-sm text-gray-500">Status: {lead.status}</p>
+              <button
+                onClick={() => handleDelete(lead.id)}
+                className="mt-2 px-4 py-1 bg-red-600 text-white rounded"
+              >
+                Delete Permanently
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+// frontend/src/layouts/AuthLayout.tsx// frontend/src/pages/ContractsPage.tsx
+import { useEffect, useState } from 'react';
+import { fetchContracts, fetchContract } from '../api/contracts';
+import { fetchLeads } from '../api/leads';
+import ContractForm from '../components/forms/ContractForm';
+import Modal from '../components/ui/Modal';
+import StatusTabs from '../components/ui/StatusTabs';
+import { toast } from 'react-toastify';
+import api from '../api/axios';
+import EmptyState from '../components/ui/EmptyState';
+import Spinner from '../components/ui/Spinner';
+
+export default function ContractsPage() {
+  // --------------------------- State ---------------------------
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selectedContract, setSelectedContract] = useState<any | null>(null);
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState('All');
+  const statusOptions = ['All', 'Pending', 'Signed', 'Voided'];
+
+  // --------------------------- Fetch ---------------------------
+  const refetchContracts = () =>
+    fetchContracts()
+      .then(data => setContracts(data))
+      .finally(() => setLoading(false));
+
+  useEffect(() => {
+    refetchContracts();
+  }, []);
+
+  useEffect(() => {
+    fetchLeads().then(setLeads);
+  }, []);
+
+  // --------------------------- Filter ---------------------------
+  const filteredContracts = contracts.filter(contract => {
+    const matchesStatus =
+      statusFilter === 'All' || contract.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesSearch =
+      contract.status.toLowerCase().includes(search.toLowerCase()) ||
+      contract.id.toString().includes(search);
+    return matchesStatus && matchesSearch;
+  });
+
+  const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = Number(e.target.value);
+    fetchContract(id).then(setSelectedContract);
+  };
+
+  const handleArchive = async () => {
+    if (!selectedContract) return;
+    const confirmArchive = confirm(`Archive Contract #${selectedContract.id}?`);
+    if (!confirmArchive) return;
+    try {
+      await api.post(`/contracts/${selectedContract.id}/archive/`);
+      toast.success('Contract archived');
+      setModalOpen(false);
+      setEditMode(false);
+      setSelectedContract(null);
+      refetchContracts();
+    } catch (error) {
+      toast.error('Failed to archive contract');
+    }
+  };
+
+  // --------------------------- UI Render ---------------------------
+  if (loading) return <Spinner />;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="sticky top-0 bg-white pb-2 space-y-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setSelectedContract(null);
+              setEditMode(false);
+              setModalOpen(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            + New Contract
+          </button>
+
+          {selectedContract && (
+            <button
+              onClick={() => {
+                setEditMode(true);
+                setModalOpen(true);
+              }}
+              className="px-4 py-2 bg-yellow-500 text-white rounded"
+            >
+              ✏️ Edit Contract
+            </button>
+          )}
+        </div>
+
+        {/* ✅ Status filter tabs */}
+        <StatusTabs
+          statuses={statusOptions}
+          activeStatus={statusFilter}
+          onSelect={setStatusFilter}
+        />
+
+        <input
+          type="text"
+          placeholder="Search contracts by ID or status..."
+          className="w-full p-2 border rounded-md"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <select
+          className="w-full p-2 border rounded-md"
+          onChange={handleSelect}
+          defaultValue=""
+        >
+          <option value="" disabled>Select a contract</option>
+          {filteredContracts.map((contract) => (
+            <option key={contract.id} value={contract.id}>
+              #{contract.id} - {contract.status}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedContract && (
+        <div className="p-4 bg-gray-100 rounded shadow">
+          <h2 className="text-xl font-bold mb-2">
+            Contract #{selectedContract.id}
+          </h2>
+          <p>Status: {selectedContract.status}</p>
+          <a
+            href={selectedContract.document}
+            className="text-blue-500 underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View PDF
+          </a>
+        </div>
+      )}
+
+      <h1 className="text-2xl font-bold mt-4">All Contracts</h1>
+      {filteredContracts.length === 0 ? (
+        <EmptyState message="No contracts found." />
+      ) : (
+        <ul className="space-y-2">
+          {filteredContracts.map((contract) => (
+            <li key={contract.id} className="p-4 bg-white rounded shadow">
+              <p className="font-semibold">Status: {contract.status}</p>
+              <p className="text-sm text-gray-600">Lead ID: {contract.lead}</p>
+              <a
+                href={contract.document}
+                className="text-blue-500 underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View PDF
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editMode ? 'Edit Contract' : 'New Contract'}
+      >
+        <ContractForm
+          initialData={editMode ? selectedContract : undefined}
+          leads={leads}
+          mode={editMode ? 'edit' : 'create'}
+          onSuccess={() => {
+            setModalOpen(false);
+            setEditMode(false);
+            refetchContracts();
+          }}
+        />
+
+        {editMode && selectedContract && (
+          <button
+            onClick={handleArchive}
+            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
+          >
+            🗃️ Archive Contract
+          </button>
+        )}
+      </Modal>
+    </div>
+  );
+}import { useEffect, useState } from 'react';
+import { fetchLeads, fetchLead, deleteLead } from '../api/leads';
+import LeadForm from '../components/forms/LeadForm';
+import Modal from '../components/ui/Modal';
+import { toast } from 'react-toastify';
+import api from '../api/axios';
+import StatusTabs from '../components/ui/StatusTabs';
+import EmptyState from '../components/ui/EmptyState';
+import type { Lead } from '../types/lead';
+
+export default function LeadsPage() {
+  // --------------------------- State ---------------------------
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [search, setSearch] = useState<string>('');
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isModalOpen, setModalOpen] = useState<boolean>(false);
+  const [editMode, setEditMode] = useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+
+  const statusOptions: string[] = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
+
+  // --------------------------- Effects ---------------------------
+  useEffect(() => {
+    fetchLeads().then(data => setLeads(data)).finally(() => setLoading(false));
+  }, []);
+
+  // --------------------------- Handlers ---------------------------
+  const refetchLeads = () => fetchLeads().then(setLeads);
+
+  const filteredLeads = leads.filter((lead) => {
+    const matchesStatus =
+      statusFilter === 'All' || lead.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesSearch =
+      lead.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      lead.status.toLowerCase().includes(search.toLowerCase()) ||
+      lead.id.toString().includes(search);
+    return matchesStatus && matchesSearch;
+  });
+
+  const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+    const id = Number(e.target.value);
+    fetchLead(id).then(setSelectedLead);
+  };
+
+  const handleArchive = async (): Promise<void> => {
+    if (!selectedLead) return;
+    const confirmArchive = window.confirm(`Archive Lead #${selectedLead.id}?`);
+    if (!confirmArchive) return;
+    try {
+      await api.post(`/leads/${selectedLead.id}/archive/`);
+      toast.success('Lead archived');
+      setModalOpen(false);
+      setEditMode(false);
+      setSelectedLead(null);
+      refetchLeads();
+    } catch (error: unknown) {
+      toast.error('Failed to archive lead');
+      console.error(error);
+    }
+  };
+
+  const handleDelete = async (): Promise<void> => {
+    if (!selectedLead) return;
+    const confirmDelete = window.confirm(`Permanently delete Lead #${selectedLead.id}?`);
+    if (!confirmDelete) return;
+    try {
+      await deleteLead(selectedLead.id);
+      toast.success('Lead deleted');
+      setModalOpen(false);
+      setEditMode(false);
+      setSelectedLead(null);
+      refetchLeads();
+    } catch (error: unknown) {
+      toast.error('Failed to delete lead');
+      console.error(error);
+    }
+  };
+
+  if (loading) return <p className="p-4">Loading leads...</p>;
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Controls */}
+      <div className="sticky top-0 bg-white pb-2 space-y-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setSelectedLead(null);
+              setEditMode(false);
+              setModalOpen(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            + New Lead
+          </button>
+
+          {selectedLead && (
+            <button
+              onClick={() => {
+                setEditMode(true);
+                setModalOpen(true);
+              }}
+              className="px-4 py-2 bg-yellow-500 text-white rounded"
+            >
+              ✏️ Edit Lead
+            </button>
+          )}
+        </div>
+
+        <StatusTabs
+          statuses={statusOptions}
+          activeStatus={statusFilter}
+          onSelect={setStatusFilter}
+        />
+
+        <input
+          type="text"
+          placeholder="Search leads by ID, name, or status..."
+          className="w-full p-2 border rounded-md"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <select
+          className="w-full p-2 border rounded-md"
+          onChange={handleSelect}
+          defaultValue=""
+        >
+          <option value="" disabled>Select a lead</option>
+          {filteredLeads.map((lead) => (
+            <option key={lead.id} value={lead.id}>
+              #{lead.id} – {lead.full_name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Selected Lead */}
+      {selectedLead && (
+        <div className="p-4 bg-gray-100 rounded shadow">
+          <h2 className="text-xl font-bold mb-2">
+            Lead #{selectedLead.id}: {selectedLead.full_name}
+          </h2>
+          <p>Email: {selectedLead.email}</p>
+          <p>Phone: {selectedLead.phone}</p>
+          <p>Property: {selectedLead.property_address}</p>
+          <p>Status: {selectedLead.status}</p>
+        </div>
+      )}
+
+      {/* Lead List */}
+      <h1 className="text-2xl font-bold mt-4">All Leads</h1>
+      {filteredLeads.length === 0 ? (
+        <EmptyState message="No leads found." />
+      ) : (
+        <ul className="space-y-2">
+          {filteredLeads.map((lead) => (
+            <li key={lead.id} className="p-4 bg-white rounded shadow">
+              <p className="font-semibold">{lead.full_name}</p>
+              <p className="text-sm text-gray-600">{lead.property_address}</p>
+              <p className="text-sm text-gray-500">Status: {lead.status}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editMode ? 'Edit Lead' : 'New Lead'}
+      >
+        <LeadForm
+          initialData={editMode ? selectedLead : undefined}
+          mode={editMode ? 'edit' : 'create'}
+          onSuccess={() => {
+            setModalOpen(false);
+            setEditMode(false);
+            refetchLeads();
+          }}
+        />
+
+        {editMode && selectedLead && (
+          <>
+            <button
+              onClick={handleArchive}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
+            >
+              🗃️ Archive Lead
+            </button>
+            <button
+              onClick={handleDelete}
+              className="mt-2 px-4 py-2 bg-red-600 text-white rounded"
+            >
+              ❌ Delete Lead
+            </button>
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}
+// src/pages/LoginPage.tsx
+import { useState } from 'react';
+import api from '../api/axios';
+import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+
+  const handleLogin = async () => {
+    try {
+      const response = await api.post('token/', { email, password });
+      localStorage.setItem('access', response.data.access);
+      localStorage.setItem('refresh', response.data.refresh);
+      toast.success('Login successful');
+      navigate('/leads');
+    } catch {
+      toast.error('Invalid credentials');
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-20 space-y-4">
+      <h1 className="text-2xl font-bold">Login</h1>
+      <input
+        type="email"
+        placeholder="Email"
+        className="w-full p-2 border rounded"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        className="w-full p-2 border rounded"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <button
+        onClick={handleLogin}
+        className="w-full p-2 bg-blue-600 text-white rounded"
+      >
+        Log In
+      </button>
+    </div>
+  );
+}
+// frontend/src/pages/SettingsPage.tsx
+export default function SettingsPage() {
+    return <h1 className="text-2xl font-semibold">Settings</h1>;
+  }
+  // src/api/axios.ts
+import axios from 'axios';
+import { toast } from 'react-toastify';
+
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api/',
+  withCredentials: false,
+});
+
+// Add a response interceptor
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      toast.error("Session expired. Please log in again.");
+      // Optionally redirect or clear auth state
+      // window.location.href = '/login'; 
+    }
+
+    return Promise.reject(error); // still propagate to catch blocks
+  }
+);
+
+export default api;
+// frontend/src/api/contracts.ts
+import api from './axios';
+import handleRequest from '../utils/request';
+import type { Contract } from '../types/contract'; // optional, if you're using types
+
+// Fetch all contracts
+export const fetchContracts = (): Promise<Contract[]> =>
+  handleRequest(() =>
+    api.get('contracts/').then(res => res.data),
+    "Failed to fetch contracts"
+  );
+
+// Fetch single contract
+export const fetchContract = (id: number): Promise<Contract> =>
+  handleRequest(() =>
+    api.get(`contracts/${id}/`).then(res => res.data),
+    "Failed to fetch contract"
+  );
+
+// Create a new contract
+export const createContract = (data: FormData): Promise<Contract> =>
+  handleRequest(() =>
+    api.post('contracts/', data).then(res => res.data),
+    "Failed to create contract"
+  );
+
+// Update existing contract
+export const updateContract = (id: number, data: FormData): Promise<Contract> =>
+  handleRequest(() =>
+    api.put(`contracts/${id}/`, data).then(res => res.data),
+    "Failed to update contract"
+  );
+
+// Delete contract
+export const deleteContract = (id: number): Promise<void> =>
+  handleRequest(
+    () => api.delete(`contracts/${id}/`).then(res => res.data),
+    "Failed to delete contract"
+  );
+// frontend/src/api/leads.ts
+import api from './axios';
+import handleRequest from '../utils/request';
+
+export const fetchLeads = () =>
+  handleRequest(() => api.get('leads/').then(res => res.data), "Failed to fetch leads");
+
+export const fetchLead = (id: number) =>
+  handleRequest(() => api.get(`leads/${id}/`).then(res => res.data), "Failed to fetch lead");
+
+export const createLead = (data: any) =>
+  handleRequest(() => api.post('leads/', data).then(res => res.data), "Failed to create lead");
+
+export const updateLead = (id: number, data: any) =>
+  handleRequest(() => api.put(`leads/${id}/`, data).then(res => res.data), "Failed to update lead");
+
+export const deleteLead = (id: number) =>
+  handleRequest(() => api.delete(`leads/${id}/`).then(res => res.data), "Failed to delete lead");
+// src/components/ui/EmptyState.tsx
+export default function EmptyState({ message }: { message: string }) {
+  return (
+    <p className="text-center text-gray-500 mt-6 italic">{message}</p>
+  );
+}
+import React, { Component, type ReactNode } from 'react';
+
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
+
+export default class ErrorBoundary extends Component<Props, State> {
+  state: State = {
+    hasError: false,
+    error: undefined,
+  };
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('Uncaught error:', error, errorInfo);
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: undefined });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 text-red-700 max-w-xl mx-auto text-center">
+          <h1 className="text-2xl font-bold mb-2">Something went wrong.</h1>
+          <p className="mb-4">{this.state.error?.message || 'Unknown error occurred.'}</p>
+          <button
+            onClick={this.handleReset}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+// src/components/ui/Modal.tsx
+import React from 'react';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  children: React.ReactNode;
+}
+
+export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  // --------------------------- Visibility Guard ---------------------------
+  if (!isOpen) return null;
+
+  // --------------------------- Render ---------------------------
+  return (
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white rounded p-6 w-full max-w-lg shadow-lg">
+        {/* Optional title */}
+        {title && <h2 className="text-xl font-bold mb-4">{title}</h2>}
+
+        {/* Modal content */}
+        {children}
+
+        {/* Close button */}
+        <div className="text-right mt-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+// src/components/ui/Spinner.tsx
+export default function Spinner() {
+  return (
+    <div className="flex justify-center items-center p-6">
+      <div className="h-6 w-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
+// src/components/ui/StatusTabs.tsx
+interface StatusTabsProps {
+    statuses: string[];
+    activeStatus: string;
+    onSelect: (status: string) => void;
+  }
+  
+  export default function StatusTabs({ statuses, activeStatus, onSelect }: StatusTabsProps) {
+    return (
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {statuses.map((status) => (
+          <button
+            key={status}
+            className={`px-3 py-1 rounded-full border ${
+              activeStatus === status
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            onClick={() => onSelect(status)}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+    );
+  }import type { ReactElement } from 'react';
+import { Navigate } from 'react-router-dom';
+
+export default function ProtectedRoute({ children }: { children: ReactElement }) {
+  const token = localStorage.getItem('access');
+  return token ? children : <Navigate to="/login" replace />;
+}
+// frontend/src/types/lead.ts
+export interface Lead {
+  id: number;
+  full_name: string;
+  email: string;
+  phone: string;
+  property_address: string;
+  status: 'new' | 'contacted' | 'qualified' | 'lost' | 'converted';
+  agent: number; // or Agent object if expanded
+  created_at: string; // ISO date string
+  is_archived: boolean;
+}// frontend/src/types/user.ts// src/utils/auth.ts
+export function logout() {
+  localStorage.removeItem('access');
+  localStorage.removeItem('refresh');
+}
+// frontend/src/utils/formatDate.ts// src/utils/request.ts
+import { toast } from 'react-toastify';
+
+const handleRequest = async <T>(
+  fn: () => Promise<T>,
+  errorMessage: string
+): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error: any) {
+    toast.error(errorMessage);
+    console.error(error);
+    throw error;
+  }
+};
+
+export default handleRequest;
+// frontend/src/utils/validators.ts// frontend/src/App.tsx
+import { Routes, Route } from 'react-router-dom';
+import AppLayout from './layouts/AppLayout';
+import LeadsPage from './pages/LeadsPage';
+import ArchivedLeadsPage from './pages/ArchivedLeadsPage';
+import ContractsPage from './pages/ContractsPage';
+import SettingsPage from './pages/SettingsPage';
+import LoginPage from './pages/LoginPage';
+import ErrorBoundary from './components/ui/ErrorBoundary';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Public route */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected route with shared layout */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route
+          path="leads"
+          element={
+            <ErrorBoundary>
+              <LeadsPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="leads/archived"
+          element={
+            <ErrorBoundary>
+              <ArchivedLeadsPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="contracts"
+          element={
+            <ErrorBoundary>
+              <ContractsPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <ErrorBoundary>
+              <SettingsPage />
+            </ErrorBoundary>
+          }
+        />
+      </Route>
+
+      {/* Catch-all 404 */}
+      <Route
+        path="*"
+        element={
+          <ErrorBoundary>
+            <div className="p-6 text-center">
+              <h1 className="text-2xl font-bold">404 Not Found</h1>
+              <p className="mt-4 text-gray-500">The page you are looking for does not exist.</p>
+              <a href="/" className="mt-4 inline-block text-blue-500 underline">
+                Go to Home
+              </a>
+            </div>
+          </ErrorBoundary>
+        }
+      />
+    </Routes>
+  );
+}
+// main.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+import './index.css';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
+import ErrorBoundary from './components/ui/ErrorBoundary'; // adjust path if needed
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <App />
+        <ToastContainer position="top-right" autoClose={3000} />
+      </BrowserRouter>
+    </ErrorBoundary>
+  </React.StrictMode>
+);
+/* frontend/src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
