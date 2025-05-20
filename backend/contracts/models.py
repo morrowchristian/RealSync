@@ -16,4 +16,4 @@ class Contract(models.Model):
     is_archived = models.BooleanField(default=False)
     
     def __str__(self):
-        return f"Contract for {self.lead.full_name} - {self.status}"
+        return f"Contract #{self.id} - {self.status}"
