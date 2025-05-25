@@ -70,6 +70,7 @@ export default function ContractForm({ initialData, leads, mode, onSuccess }: Co
     <form onSubmit={handleSubmit} className="space-y-4 p-4">
       <select
         name="lead"
+        data-testid="contract-lead"
         value={leadId}
         onChange={(e) => setLeadId(Number(e.target.value))}
         className="w-full p-2 border rounded"
@@ -83,6 +84,7 @@ export default function ContractForm({ initialData, leads, mode, onSuccess }: Co
 
       <select
         name="status"
+        data-testid="contract-status"
         value={status}
         onChange={(e) => setStatus(e.target.value)}
         className="w-full p-2 border rounded"
@@ -95,6 +97,7 @@ export default function ContractForm({ initialData, leads, mode, onSuccess }: Co
       <input
         type="file"
         name="document"
+        data-testid="contract-document"
         accept=".pdf"
         onChange={handleFileChange}
         className="w-full p-2 border rounded"
@@ -102,6 +105,7 @@ export default function ContractForm({ initialData, leads, mode, onSuccess }: Co
 
       <button
         type="submit"
+        data-testid="contract-submit"
         disabled={submitting}
         className={`px-4 py-2 text-white rounded ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600'}`}
       >
