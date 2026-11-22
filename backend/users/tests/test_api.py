@@ -1,9 +1,16 @@
 # backend/users/tests/test_api.py
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 from users.models import Agent
 
 class AgentAPITests(APITestCase):
+    def setUp(self):
+        # API requires JWT auth: authenticate the test client.
+        self.agent = Agent.objects.create_user(username="authuser", password="testpass")
+        refresh = RefreshToken.for_user(self.agent)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+
     def test_list_agents(self):
         Agent.objects.create_user(username="listuser", password="testpass")
         response = self.client.get("/api/agents/")

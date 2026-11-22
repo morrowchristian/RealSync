@@ -1,7 +1,7 @@
 // frontend/src/pages/ArchivedContractsPage.tsx
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { restoreContract, fetchContracts, deleteContract } from '../api/contracts';
+import { restoreContract, fetchAllContracts, deleteContract } from '../api/contracts';
 import StatusTabs from '../components/ui/StatusTabs';
 import type { Contract } from '../types/contract';
 
@@ -14,7 +14,7 @@ export default function ArchivedContractsPage() {
 
   const fetchArchivedContracts = async () => {
     try {
-      const all = await fetchContracts(); // assumes ?all=true is handled in backend
+      const all = await fetchAllContracts(); // GET contracts/?all=true, then filter archived (same pattern as ArchivedLeadsPage)
       const archived = all.filter(c => c.is_archived);
       setContracts(archived);
     } catch {

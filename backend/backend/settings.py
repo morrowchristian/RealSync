@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+import dj_database_url
+
 # -----------------------------------------------------------
 # Base Directory
 # -----------------------------------------------------------
@@ -22,15 +24,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security
 # -----------------------------------------------------------
 
-SECRET_KEY = 'django-insecure-tcwcz)id&qe7zde1+8$gm%l9ewrq(nv&-#tej1441%-rm6n^sg'
-DEBUG = True
+# SECURITY WARNING: keep the secret key used in production secret!
+# Read from the environment in production; the insecure default below
+# is only a local-dev fallback when DJANGO_SECRET_KEY is not set.
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-tcwcz)id&qe7zde1+8$gm%l9ewrq(nv&-#tej1441%-rm6n^sg',
+)
 
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
+
+# Comma-separated list, e.g. ALLOWED_HOSTS=example.com,api.example.com
+# localhost / 127.0.0.1 are always allowed so local dev keeps working.
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    '.githubpreview.dev',
-    '.app.github.dev',
+    host.strip()
+    for host in os.environ.get('ALLOWED_HOSTS', '').split(',')
+    if host.strip()
 ]
+for _host in ('127.0.0.1', 'localhost', '.githubpreview.dev', '.app.github.dev'):
+    if _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
 
 CSRF_TRUSTED_ORIGINS = [
     'https://*.githubpreview.dev',
@@ -113,12 +127,22 @@ TEMPLATES = [
 # Database
 # -----------------------------------------------------------
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Postgres when DATABASE_URL is set (production), otherwise the local
+# SQLite database. No credentials are hardcoded here.
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.parse(
+            os.environ['DATABASE_URL'],
+            conn_max_age=600,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # -----------------------------------------------------------
 # Password Validators
@@ -154,6 +178,10 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Uploaded files (contract PDFs live under Contract.document).
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # -----------------------------------------------------------
 # REST Framework & CORS Config
 # -----------------------------------------------------------
@@ -161,11 +189,14 @@ STATIC_URL = 'static/'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),  # ⏱ Set to 1 min for testing
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': False,
@@ -174,7 +205,19 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# Local dev: allow all origins. In production set CORS_ALLOWED_ORIGINS
+# (comma-separated, e.g. CORS_ALLOWED_ORIGINS=https://app.example.com)
+# to restrict origins; setting it automatically turns allow-all off.
+_cors_allowed_origins = [
+    origin.strip()
+    for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+if _cors_allowed_origins:
+    CORS_ALLOWED_ORIGINS = _cors_allowed_origins
+    CORS_ALLOW_ALL_ORIGINS = False
+else:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 # -----------------------------------------------------------
 # Default Field

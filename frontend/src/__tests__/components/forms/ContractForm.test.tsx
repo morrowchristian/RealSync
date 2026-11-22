@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ContractForm from '../../../components/forms/ContractForm';
-import { renderWithProviders } from '../test-utils';
-import { server } from '../../mocks/server';
+import { renderWithProviders } from '../../test-utils';
+import { server } from '../../../mocks/server';
 import { rest } from 'msw';
 import { toast } from 'react-toastify';
 
@@ -10,6 +10,9 @@ jest.mock('react-toastify', () => ({
     success: jest.fn(),
     error: jest.fn(),
   },
+  // test-utils renders <ToastContainer />; the mock must provide it or the
+  // component is undefined and every render fails.
+  ToastContainer: () => null,
 }));
 
 const leads = [{ id: 1, full_name: 'John Doe' }];

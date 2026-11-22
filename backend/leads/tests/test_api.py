@@ -1,6 +1,7 @@
 # backend/leads/tests/test_api.py
 from django.test import TestCase
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 from users.models import Agent
 from leads.models import Lead
 
@@ -8,6 +9,9 @@ class LeadAPITestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.agent = Agent.objects.create_user(username="apiuser", password="testpass")
+        # API requires JWT auth: authenticate the test client.
+        refresh = RefreshToken.for_user(self.agent)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
         self.lead = Lead.objects.create(
             full_name="API Tester",
             email="api@example.com",
