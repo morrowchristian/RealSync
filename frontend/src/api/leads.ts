@@ -16,18 +16,21 @@ export const fetchLead = (id: number): Promise<Lead> =>
     "Failed to fetch lead"
   );
 
-// Create a new lead
+// Create a new lead (silent: LeadForm owns the error display and toasts
+// the backend's plain message, e.g. a trial quota error, itself).
 export const createLead = (data: Partial<Lead>): Promise<Lead> =>
-  handleRequest(() =>
-    api.post('leads/', data).then(res => res.data),
-    "Failed to create lead"
+  handleRequest(
+    () => api.post('leads/', data).then(res => res.data),
+    "Failed to create lead",
+    { silent: true }
   );
 
-// Update an existing lead
+// Update an existing lead (silent: see createLead).
 export const updateLead = (id: number, data: Partial<Lead>): Promise<Lead> =>
-  handleRequest(() =>
-    api.put(`leads/${id}/`, data).then(res => res.data),
-    "Failed to update lead"
+  handleRequest(
+    () => api.put(`leads/${id}/`, data).then(res => res.data),
+    "Failed to update lead",
+    { silent: true }
   );
 
 // Permanently delete a lead

@@ -2,8 +2,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import api from '../api/axios';
+import { fetchCurrentAgent, type AgentProfile } from '../api/agent';
 import { logout } from '../utils/auth';
+import { CUSTOM_FIELD_LIMIT, formatTrialStatus } from '../utils/trial';
 import {
   createCustomField,
   deleteCustomField,
@@ -24,35 +25,6 @@ import {
 } from '../types/customField';
 import CustomFieldForm from '../components/forms/CustomFieldForm';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
-
-interface AgentProfile {
-  id: number;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  brokerage: string;
-}
-
-// The backend has no /agents/me/ endpoint — the agents list/detail endpoints
-// are the only user endpoints. Login stores only the access/refresh tokens,
-// so the current agent is identified from the `user_id` claim in the
-// SimpleJWT access token, then fetched via GET agents/{id}/.
-function getCurrentUserId(): number | null {
-  try {
-    const token = localStorage.getItem('access');
-    if (!token) return null;
-    const payload = token.split('.')[1];
-    if (!payload) return null;
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    const decoded = JSON.parse(atob(padded));
-    return typeof decoded.user_id === 'number' ? decoded.user_id : null;
-  } catch {
-    return null;
-  }
-}
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -89,6 +61,20 @@ export default function SettingsPage() {
       )
       // Fall back to the defaults if the fetch fails; the form still works.
       .catch(() => setFieldConfig(DEFAULT_FIELD_CONFIG));
+  }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const data = await fetchCurrentAgent();
+      if (data === null) {
+        setLoadFailed(true);
+        toast.error('Failed to load profile');
+      } else {
+        setProfile(data);
+      }
+      setLoading(false);
+    };
+    fetchProfile();
   }, []);
 
   const handleSaveCustomField = async (data: CustomFieldPayload) => {
@@ -135,27 +121,6 @@ export default function SettingsPage() {
     }
   };
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const userId = getCurrentUserId();
-      if (userId === null) {
-        setLoadFailed(true);
-        setLoading(false);
-        return;
-      }
-      try {
-        const res = await api.get<AgentProfile>(`agents/${userId}/`);
-        setProfile(res.data);
-      } catch {
-        setLoadFailed(true);
-        toast.error('Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
-
   const handleLogout = () => {
     logout();
     toast.success('Logged out');
@@ -192,6 +157,19 @@ export default function SettingsPage() {
               <span className="text-gray-600">{field.value || '—'}</span>
             </p>
           ))}
+          {profile.is_trial ? (
+            <p data-testid="trial-status" className="text-sm">
+              <span className="font-semibold">Trial: </span>
+              <span className="text-gray-600">
+                {formatTrialStatus(profile) ?? 'Trial account'}
+              </span>
+            </p>
+          ) : (
+            <p data-testid="trial-status" className="text-sm">
+              <span className="font-semibold">Account: </span>
+              <span className="text-gray-600">Full account</span>
+            </p>
+          )}
           <p className="text-sm text-gray-500">
             Profile editing is not yet available.
           </p>
@@ -273,6 +251,11 @@ export default function SettingsPage() {
         {/* Custom fields manager */}
         <div className="space-y-2">
           <h3 className="font-semibold">Custom fields</h3>
+          {profile?.is_trial && (
+            <p data-testid="custom-fields-quota" className="text-sm text-gray-600">
+              {customFields.length} / {CUSTOM_FIELD_LIMIT} custom fields
+            </p>
+          )}
           {fieldsLoading ? (
             <p className="text-sm text-gray-600">Loading custom fields...</p>
           ) : customFields.length === 0 ? (

@@ -8,14 +8,18 @@ import ContractsPage from './pages/ContractsPage';
 import ArchivedContractsPage from './pages/ArchivedContractsPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import DemoPage from './pages/DemoPage';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 export default function App() {
   return (
     <Routes>
-      {/* Public route */}
+      {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/demo" element={<DemoPage />} />
 
       {/* Protected route with shared layout */}
       <Route

@@ -298,4 +298,123 @@ export const handlers = [
     const merged = { ...defaults, ...(body.field_config ?? {}) };
     return res(ctx.status(200), ctx.json({ field_config: merged }));
   }),
+
+  // 📝 Public Signup Endpoint (POST /api/register/)
+  // NOTE: mocks the backend contract — the real endpoint is built by the
+  // backend worker on the same branch. The access token is a fake JWT
+  // whose payload is {"user_id": 3} so getCurrentUserId() can decode it.
+  rest.post('http://localhost:8000/api/register/', async (req, res, ctx) => {
+    const body = await req.json();
+    if (body.username === 'existinguser') {
+      return res(
+        ctx.status(400),
+        ctx.json({ username: ['A user with that username already exists.'] })
+      );
+    }
+    if (!body.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+      return res(
+        ctx.status(400),
+        ctx.json({ email: ['Enter a valid email address.'] })
+      );
+    }
+    if (!body.password || body.password.length < 8) {
+      return res(
+        ctx.status(400),
+        ctx.json({ password: ['This password is too short.'] })
+      );
+    }
+    return res(
+      ctx.status(201),
+      ctx.json({
+        id: 3,
+        username: body.username,
+        email: body.email,
+        is_trial: true,
+        trial_ends_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        access:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozfQ.fakesignature',
+        refresh: 'fake-refresh-token',
+      })
+    );
+  }),
+
+  // 👀 Public Demo Endpoint (GET /api/demo/)
+  // NOTE: mocks the backend contract — the real endpoint is built by the
+  // backend worker on the same branch.
+  rest.get('http://localhost:8000/api/demo/', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        leads: [
+          {
+            id: 1,
+            name: 'Demo Lead One',
+            email: 'one@example.com',
+            phone: '111',
+            property_address: '1 Demo Lane',
+            status: 'new',
+            company: 'Demo Co',
+            lead_source: 'referral',
+            notes: 'Sample lead',
+            preferred_contact: 'email',
+            created_at: '2024-01-01T00:00:00Z',
+          },
+          {
+            id: 2,
+            name: 'Demo Lead Two',
+            email: 'two@example.com',
+            phone: '222',
+            property_address: '2 Demo Lane',
+            status: 'contacted',
+            company: 'Demo Co',
+            lead_source: 'referral',
+            notes: 'Sample lead',
+            preferred_contact: 'phone',
+            created_at: '2024-01-02T00:00:00Z',
+          },
+        ],
+        contracts: [
+          {
+            id: 1,
+            lead_name: 'Demo Lead One',
+            status: 'pending',
+            created_at: '2024-01-03T00:00:00Z',
+          },
+        ],
+        stats: {
+          total_leads: 2,
+          active_leads: 2,
+          total_contracts: 1,
+          pending_signature: 1,
+          leads_by_status: {
+            new: 1,
+            contacted: 1,
+            qualified: 0,
+            converted: 0,
+            lost: 0,
+          },
+        },
+      })
+    );
+  }),
+
+  // 👤 Agent Detail Endpoint (GET /api/agents/:id/) — default: full account.
+  // Tests override with server.use() to return a trial account.
+  rest.get('http://localhost:8000/api/agents/:id/', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: Number(req.params.id),
+        username: 'testuser',
+        email: 'test@example.com',
+        first_name: 'Test',
+        last_name: 'User',
+        phone: '',
+        brokerage: '',
+        is_trial: false,
+        trial_ends_at: null,
+        days_remaining: null,
+      })
+    );
+  }),
 ];

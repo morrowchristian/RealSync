@@ -15,6 +15,8 @@ import Spinner from '../components/ui/Spinner';
 import { toast } from 'react-toastify';
 import type { Contract } from '../types/contract';
 import type { Lead } from '../types/lead';
+import { fetchCurrentAgent } from '../api/agent';
+import { CONTRACT_LIMIT } from '../utils/trial';
 
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -27,6 +29,8 @@ export default function ContractsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   // Whether the in-app archive confirmation is showing.
   const [confirmArchive, setConfirmArchive] = useState<boolean>(false);
+  // Trial accounts are capped at CONTRACT_LIMIT contracts; false = full.
+  const [isTrial, setIsTrial] = useState<boolean>(false);
 
   const statusOptions = ['All', 'Pending', 'Signed', 'Voided'];
 
@@ -37,6 +41,7 @@ export default function ContractsPage() {
 
   useEffect(() => {
     refetchContracts();
+    fetchCurrentAgent().then((agent) => setIsTrial(agent?.is_trial ?? false));
   }, []);
 
   useEffect(() => {
@@ -153,6 +158,11 @@ export default function ContractsPage() {
       )}
 
       <h1 className="text-2xl font-bold mt-4">All Contracts</h1>
+      {isTrial && (
+        <p data-testid="contracts-quota" className="text-sm text-gray-600">
+          {contracts.length} / {CONTRACT_LIMIT} contracts
+        </p>
+      )}
       {filteredContracts.length === 0 ? (
         <EmptyState message="No contracts found." />
       ) : (
