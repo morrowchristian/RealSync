@@ -1,9 +1,15 @@
 // frontend/src/layouts/AppLayout.tsx
 import { useState } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, NavLink } from 'react-router-dom';
 import { logout } from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+
+// Active nav link: highlighted background; inactive: muted text.
+const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
+  isActive
+    ? 'bg-gray-700 text-white rounded px-2 py-1'
+    : 'text-gray-300 hover:text-white px-2 py-1';
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -35,45 +41,64 @@ export default function AppLayout() {
         className={`${sidebarOpen ? 'block' : 'hidden'} md:block w-64 shrink-0 bg-gray-800 text-white p-6 space-y-4`}
       >
         {/* Brand title */}
-        <h2 className="text-xl font-semibold">RealSync</h2>
+        <Link
+          to="/"
+          onClick={() => setSidebarOpen(false)}
+          className="text-xl font-semibold hover:text-gray-300"
+        >
+          RealSync
+        </Link>
 
         {/* Navigation links */}
         <nav className="flex flex-col space-y-2">
-          <Link
-            to="/leads"
+          <NavLink
+            to="/"
+            end
             onClick={() => setSidebarOpen(false)}
-            className="hover:underline text-gray-300 hover:text-white"
+            className={navLinkClass}
+          >
+            Dashboard
+          </NavLink>
+          <NavLink
+            to="/leads"
+            end
+            onClick={() => setSidebarOpen(false)}
+            className={navLinkClass}
           >
             Leads
-          </Link>
-          <Link
+          </NavLink>
+          <NavLink
             to="/leads/archived"
+            end
             onClick={() => setSidebarOpen(false)}
-            className="hover:underline text-gray-300 hover:text-white"
+            className={navLinkClass}
           >
             Archived Leads
-          </Link>
-          <Link
+          </NavLink>
+          <NavLink
             to="/contracts"
+            end
             onClick={() => setSidebarOpen(false)}
-            className="hover:underline text-gray-300 hover:text-white"
+            className={navLinkClass}
           >
             Contracts
-          </Link>
-          <Link
+          </NavLink>
+          <NavLink
             to="/contracts/archived"
+            end
             onClick={() => setSidebarOpen(false)}
-            className="hover:underline text-gray-300 hover:text-white"
+            className={navLinkClass}
           >
             Archived Contracts
-          </Link>
-          <Link
+          </NavLink>
+          <NavLink
             to="/settings"
+            end
             onClick={() => setSidebarOpen(false)}
-            className="hover:underline text-gray-300 hover:text-white"
+            className={navLinkClass}
           >
             Settings
-          </Link>
+          </NavLink>
         </nav>
 
         {/* Divider */}

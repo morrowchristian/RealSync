@@ -1,6 +1,7 @@
 // frontend/src/App.tsx
 import { Routes, Route } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
+import DashboardPage from './pages/DashboardPage';
 import LeadsPage from './pages/LeadsPage';
 import ArchivedLeadsPage from './pages/ArchivedLeadsPage';
 import ContractsPage from './pages/ContractsPage';
@@ -25,6 +26,14 @@ export default function App() {
           </ProtectedRoute>
         }
       >
+        <Route
+          index
+          element={
+            <ErrorBoundary>
+              <DashboardPage />
+            </ErrorBoundary>
+          }
+        />
         <Route
           path="leads"
           element={

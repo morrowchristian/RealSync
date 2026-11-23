@@ -3,15 +3,16 @@ import { useEffect, useState } from 'react';
 import {
   fetchContracts,
   fetchContract,
+  archiveContract,
 } from '../api/contracts';
 import { fetchLeads } from '../api/leads';
 import ContractForm from '../components/forms/ContractForm';
 import Modal from '../components/ui/Modal';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import StatusTabs from '../components/ui/StatusTabs';
 import EmptyState from '../components/ui/EmptyState';
 import Spinner from '../components/ui/Spinner';
 import { toast } from 'react-toastify';
-import api from '../api/axios';
 import type { Contract } from '../types/contract';
 import type { Lead } from '../types/lead';
 
@@ -24,6 +25,8 @@ export default function ContractsPage() {
   const [isModalOpen, setModalOpen] = useState<boolean>(false);
   const [editMode, setEditMode] = useState<boolean>(false);
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  // Whether the in-app archive confirmation is showing.
+  const [confirmArchive, setConfirmArchive] = useState<boolean>(false);
 
   const statusOptions = ['All', 'Pending', 'Signed', 'Voided'];
 
@@ -54,15 +57,19 @@ export default function ContractsPage() {
     fetchContract(id).then(setSelectedContract);
   };
 
+  const closeModal = () => {
+    setModalOpen(false);
+    setConfirmArchive(false);
+  };
+
   const handleArchive = async () => {
     if (!selectedContract) return;
-    const confirmArchive = confirm(`Archive Contract #${selectedContract.id}?`);
-    if (!confirmArchive) return;
     try {
-      await api.post(`/contracts/${selectedContract.id}/archive/`);
+      await archiveContract(selectedContract.id);
       toast.success('Contract archived');
       setModalOpen(false);
       setEditMode(false);
+      setConfirmArchive(false);
       setSelectedContract(null);
       refetchContracts();
     } catch (error) {
@@ -169,7 +176,7 @@ export default function ContractsPage() {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         title={editMode ? 'Edit Contract' : 'New Contract'}
       >
         <ContractForm
@@ -177,19 +184,39 @@ export default function ContractsPage() {
           leads={leads}
           mode={editMode ? 'edit' : 'create'}
           onSuccess={() => {
+            // Refresh the selected contract so the detail panel and the
+            // next Edit prefill show the updated values (not the stale object).
+            if (editMode && selectedContract) {
+              fetchContract(selectedContract.id).then(setSelectedContract);
+            }
             setModalOpen(false);
             setEditMode(false);
+            setConfirmArchive(false);
             refetchContracts();
           }}
         />
 
         {editMode && selectedContract && (
-          <button
-            onClick={handleArchive}
-            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
-          >
-            🗃️ Archive Contract
-          </button>
+          <>
+            <button
+              onClick={() => setConfirmArchive(true)}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
+            >
+              🗃️ Archive Contract
+            </button>
+
+            {confirmArchive && (
+              <div className="mt-4">
+                <ConfirmDialog
+                  message={`Archive Contract #${selectedContract.id}? The contract will move to Archived Contracts and can be restored later.`}
+                  confirmLabel="Yes, archive"
+                  variant="warn"
+                  onConfirm={handleArchive}
+                  onCancel={() => setConfirmArchive(false)}
+                />
+              </div>
+            )}
+          </>
         )}
       </Modal>
     </div>
