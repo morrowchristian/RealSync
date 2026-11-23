@@ -5,7 +5,7 @@ import { logout } from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-// Dribbble admin-panel sidebar: very dark navy/black (#050609), light
+// Dribbble admin-panel sidebar: slate blue-grey (#1E293B), light
 // icons/labels, active item highlighted in bright royal blue (#214EDF).
 const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
   isActive
@@ -41,7 +41,7 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F6FBFE]">
       {/* --------------------------- Mobile top bar --------------------------- */}
-      <div className="md:hidden flex items-center justify-between bg-[#050609] text-white p-4">
+      <div className="md:hidden flex items-center justify-between bg-[#1E293B] text-white p-4">
         <h2 className="text-xl font-semibold">RealSync</h2>
         <button
           onClick={() => setSidebarOpen((open) => !open)}
@@ -55,7 +55,7 @@ export default function AppLayout() {
 
       {/* --------------------------- Sidebar --------------------------- */}
       <aside
-        className={`${sidebarOpen ? 'block' : 'hidden'} md:block w-64 shrink-0 bg-[#050609] text-white p-6 space-y-4`}
+        className={`${sidebarOpen ? 'block' : 'hidden'} md:block w-64 shrink-0 bg-[#1E293B] text-white p-6 space-y-4`}
       >
         {/* Brand title */}
         <Link

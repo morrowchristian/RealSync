@@ -112,8 +112,8 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   // Which destructive action is awaiting in-app confirmation, if any.
   const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
-  // Cards or spreadsheet view for the lead list; defaults to Cards.
-  const [viewMode, setViewMode] = useState<'cards' | 'sheet'>('cards');
+  // Lead shown in the double-click contact-card modal; null = closed.
+  const [cardLead, setCardLead] = useState<Lead | null>(null);
   // Trial accounts are capped at LEAD_LIMIT leads; null = unknown / full.
   const [isTrial, setIsTrial] = useState<boolean>(false);
   // Custom-field definitions, for labelling custom_data on the contact card.
@@ -151,10 +151,23 @@ export default function LeadsPage() {
     return matchesStatus && matchesSearch;
   });
 
-  // Selecting a lead (clicking a card or a sheet row) fetches the fresh
-  // record and shows the contact card.
+  // Single-click selects (highlights) the row and fetches the fresh
+  // record for highlight state. It does NOT open any card.
   const handleSelectLead = (id: number): void => {
     fetchLead(id).then(setSelectedLead);
+  };
+
+  // Double-click opens the contact card in a modal.
+  const handleOpenCard = (id: number): void => {
+    fetchLead(id).then((lead) => {
+      setSelectedLead(lead);
+      setCardLead(lead);
+    });
+  };
+
+  const closeCardModal = (): void => {
+    setCardLead(null);
+    setConfirmAction(null);
   };
 
   const closeModal = (): void => {
@@ -187,6 +200,7 @@ export default function LeadsPage() {
       setEditMode(false);
       setConfirmAction(null);
       setSelectedLead(null);
+      setCardLead(null);
       refetchLeads();
     } catch (error: unknown) {
       toast.error('Failed to archive lead');
@@ -203,6 +217,7 @@ export default function LeadsPage() {
       setEditMode(false);
       setConfirmAction(null);
       setSelectedLead(null);
+      setCardLead(null);
       refetchLeads();
     } catch (error: unknown) {
       toast.error('Failed to delete lead');
@@ -211,7 +226,7 @@ export default function LeadsPage() {
   };
 
   const ownerName =
-    selectedLead && currentAgent && currentAgent.id === selectedLead.agent
+    cardLead && currentAgent && currentAgent.id === cardLead.agent
       ? [currentAgent.first_name, currentAgent.last_name]
           .filter(Boolean)
           .join(' ') || currentAgent.username
@@ -221,22 +236,7 @@ export default function LeadsPage() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Selected lead — full contact card (replaces the old 4-field panel) */}
-      {selectedLead && (
-        <ContactCard
-          lead={selectedLead}
-          customFields={customFields}
-          ownerName={ownerName}
-          onBack={() => setSelectedLead(null)}
-          onEdit={() => openEditModal(selectedLead)}
-          onUpdated={() => {
-            fetchLead(selectedLead.id).then(setSelectedLead);
-            refetchLeads();
-          }}
-        />
-      )}
-
-      {/* Leads list — clean white table card (Dribbble polish) */}
+      {/* Leads list — single spreadsheet view (white table card, Dribbble polish) */}
       <section className="bg-white rounded-2xl border border-gray-200 shadow-sm">
         <div className="flex flex-wrap items-center gap-3 px-5 pt-5 pb-4">
           <div>
@@ -290,30 +290,6 @@ export default function LeadsPage() {
             >
               + New Lead
             </button>
-
-            {/* Cards / Sheet view toggle */}
-            <div className="flex rounded-full overflow-hidden border border-gray-300">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`px-3 py-2 text-sm ${
-                  viewMode === 'cards'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Cards
-              </button>
-              <button
-                onClick={() => setViewMode('sheet')}
-                className={`px-3 py-2 text-sm ${
-                  viewMode === 'sheet'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                Sheet
-              </button>
-            </div>
           </div>
         </div>
 
@@ -325,45 +301,26 @@ export default function LeadsPage() {
           />
         </div>
 
+        <p className="px-5 pb-2 text-xs text-gray-400">
+          Double-click a row to open the contact card.
+        </p>
+
         {filteredLeads.length === 0 ? (
           <div className="px-5 pb-5">
             <EmptyState message="No leads found." />
           </div>
-        ) : viewMode === 'cards' ? (
-          <ul className="divide-y divide-gray-100 px-2 pb-2">
-            {filteredLeads.map((lead) => (
-              <li
-                key={lead.id}
-                onClick={() => handleSelectLead(lead.id)}
-                className={`flex items-start justify-between gap-2 px-3 py-4 rounded-lg cursor-pointer hover:bg-gray-50 transition ${
-                  selectedLead?.id === lead.id ? 'ring-2 ring-blue-600' : ''
-                }`}
-              >
-                <div>
-                  <p className="font-semibold text-gray-900">{lead.full_name}</p>
-                  <p className="text-sm text-gray-500">{lead.email}</p>
-                  <p className="text-sm text-gray-600">{lead.property_address}</p>
-                  <p className="text-sm text-gray-500">{lead.status}</p>
-                </div>
-                <RowMenu
-                  lead={lead}
-                  onEdit={openEditModal}
-                  onArchive={requestArchive}
-                  onDelete={requestDelete}
-                />
-              </li>
-            ))}
-          </ul>
         ) : (
           <div className="overflow-x-auto pb-2">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-xs text-gray-500 border-y border-gray-100">
-                  <th className="px-5 py-3 font-semibold">Name</th>
+                  <th className="px-5 py-3 font-semibold">ID</th>
+                  <th className="px-4 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">Company</th>
                   <th className="px-4 py-3 font-semibold">Phone</th>
                   <th className="px-4 py-3 font-semibold">Property Address</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">Date Created</th>
                   <th className="px-4 py-3 font-semibold">
                     <span className="sr-only">Actions</span>
                   </th>
@@ -373,15 +330,19 @@ export default function LeadsPage() {
                 {filteredLeads.map((lead) => (
                   <tr
                     key={lead.id}
+                    data-testid={`lead-row-${lead.id}`}
                     onClick={() => handleSelectLead(lead.id)}
+                    onDoubleClick={() => handleOpenCard(lead.id)}
                     className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
                       selectedLead?.id === lead.id ? 'bg-blue-50' : ''
                     }`}
                   >
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-sm text-gray-700">{lead.id}</td>
+                    <td className="px-4 py-4">
                       <p className="font-semibold text-gray-900">{lead.full_name}</p>
                       <p className="text-sm text-gray-500">{lead.email}</p>
                     </td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{lead.company || '—'}</td>
                     <td className="px-4 py-4 text-sm text-gray-700">{lead.phone}</td>
                     <td className="px-4 py-4 text-sm text-gray-700">{lead.property_address}</td>
                     <td className="px-4 py-4 text-sm text-gray-700">{lead.status}</td>
@@ -404,8 +365,8 @@ export default function LeadsPage() {
         )}
       </section>
 
-      {/* In-app confirm for kebab Archive/Delete (outside the modal) */}
-      {confirmAction && selectedLead && !isModalOpen && (
+      {/* In-app confirm for kebab Archive/Delete (outside any modal) */}
+      {confirmAction && selectedLead && !isModalOpen && !cardLead && (
         <div className="mt-4">
           <ConfirmDialog
             message={
@@ -420,6 +381,73 @@ export default function LeadsPage() {
           />
         </div>
       )}
+
+      {/* Contact-card modal (opened by double-clicking a row) */}
+      <Modal
+        isOpen={cardLead !== null}
+        onClose={closeCardModal}
+        title={cardLead?.full_name}
+      >
+        {cardLead && (
+          <>
+            <ContactCard
+              lead={cardLead}
+              customFields={customFields}
+              ownerName={ownerName}
+              onBack={closeCardModal}
+              onEdit={() => {
+                const lead = cardLead;
+                setCardLead(null);
+                setConfirmAction(null);
+                openEditModal(lead);
+              }}
+              onUpdated={() => {
+                fetchLead(cardLead.id).then((fresh) => {
+                  setSelectedLead(fresh);
+                  setCardLead(fresh);
+                });
+                refetchLeads();
+              }}
+            />
+
+            <button
+              onClick={() => requestArchive(cardLead)}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
+            >
+              🗃️ Archive Lead
+            </button>
+            <button
+              onClick={() => requestDelete(cardLead)}
+              className="mt-2 px-4 py-2 bg-red-600 text-white rounded"
+            >
+              ❌ Delete Lead
+            </button>
+
+            {confirmAction === 'archive' && (
+              <div className="mt-4">
+                <ConfirmDialog
+                  message={`Archive Lead #${cardLead.id}? The lead will move to Archived Leads and can be restored later.`}
+                  confirmLabel="Yes, archive"
+                  variant="warn"
+                  onConfirm={handleArchive}
+                  onCancel={() => setConfirmAction(null)}
+                />
+              </div>
+            )}
+            {confirmAction === 'delete' && (
+              <div className="mt-4">
+                <ConfirmDialog
+                  message={`Permanently delete Lead #${cardLead.id}? This cannot be undone.`}
+                  confirmLabel="Yes, delete"
+                  variant="danger"
+                  onConfirm={handleDelete}
+                  onCancel={() => setConfirmAction(null)}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </Modal>
 
       {/* Modal */}
       <Modal
