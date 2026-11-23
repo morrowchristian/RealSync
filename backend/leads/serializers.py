@@ -11,6 +11,13 @@ class LeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = '__all__'
+        # `agent` is set by the viewset from the logged-in user
+        # (perform_create) — it must never be required in, or taken
+        # from, the request payload. DRF validates the serializer
+        # BEFORE perform_create runs, so a writable `agent` made every
+        # create without an agent id fail with
+        # "agent: This field is required."
+        read_only_fields = ('agent',)
 
     def validate_phone(self, value):
         if value and not PHONE_RE.match(value):

@@ -1,5 +1,5 @@
 // frontend/src/__tests__/pages/LeadsPage.test.tsx
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import LeadsPage from '../../pages/LeadsPage';
 import { renderWithProviders } from '../test-utils';
 import { server } from '../../mocks/server';
@@ -71,6 +71,71 @@ test('sheet view kebab menu offers Edit / Archive / Delete', async () => {
   fireEvent.click(screen.getByTestId('lead-menu-edit-1'));
   expect(await screen.findByText('Edit Lead')).toBeInTheDocument();
   expect(screen.getByTestId('lead-full_name')).toHaveValue('John Doe');
+});
+
+test('New Lead modal keeps Create Lead and Cancel in the fixed footer', async () => {
+  renderWithProviders(<LeadsPage />);
+  await screen.findByText('John Doe');
+  fireEvent.click(screen.getByRole('button', { name: '+ New Lead' }));
+
+  expect(await screen.findByText('New Lead')).toBeInTheDocument();
+  const footer = screen.getByTestId('modal-footer');
+  const scroll = screen.getByTestId('modal-scroll');
+
+  // Submit + Cancel (and Close) live in the fixed footer, visible on open.
+  expect(within(footer).getByTestId('lead-submit')).toHaveTextContent('Create Lead');
+  expect(within(footer).getByTestId('lead-cancel')).toBeInTheDocument();
+  expect(within(footer).getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  // …and nowhere inside the scrollable form region.
+  expect(within(scroll).queryByTestId('lead-submit')).not.toBeInTheDocument();
+  expect(within(scroll).queryByTestId('lead-cancel')).not.toBeInTheDocument();
+
+  // Cancel (from the footer) closes the modal.
+  fireEvent.click(within(footer).getByTestId('lead-cancel'));
+  await waitFor(() => {
+    expect(screen.queryByTestId('modal-dialog')).not.toBeInTheDocument();
+  });
+});
+
+test('submitting from the fixed footer creates the lead', async () => {
+  renderWithProviders(<LeadsPage />);
+  await screen.findByText('John Doe');
+  fireEvent.click(screen.getByRole('button', { name: '+ New Lead' }));
+  await screen.findByText('New Lead');
+
+  fireEvent.change(screen.getByTestId('lead-full_name'), { target: { value: 'Footer User' } });
+  fireEvent.change(screen.getByTestId('lead-email'), { target: { value: 'footer@example.com' } });
+  fireEvent.change(screen.getByTestId('lead-property_address'), { target: { value: '789 Footer Rd' } });
+  // The submit button sits outside the <form> element (fixed footer), so
+  // this also proves the form-attribute wiring submits the form.
+  fireEvent.click(within(screen.getByTestId('modal-footer')).getByTestId('lead-submit'));
+
+  await waitFor(() => {
+    expect(screen.queryByTestId('modal-dialog')).not.toBeInTheDocument();
+  });
+});
+
+test('Edit Lead modal keeps Update Lead in the fixed footer and Archive/Delete in the body', async () => {
+  server.use(
+    rest.get('http://localhost:8000/api/leads/1/', (req, res, ctx) => {
+      return res(ctx.status(200), ctx.json(fullLead));
+    })
+  );
+  renderWithProviders(<LeadsPage />);
+  await screen.findByText('John Doe');
+  fireEvent.click(screen.getByTestId('lead-kebab-1'));
+  fireEvent.click(screen.getByTestId('lead-menu-edit-1'));
+
+  expect(await screen.findByText('Edit Lead')).toBeInTheDocument();
+  const footer = screen.getByTestId('modal-footer');
+  const scroll = screen.getByTestId('modal-scroll');
+
+  expect(within(footer).getByTestId('lead-submit')).toHaveTextContent('Update Lead');
+  expect(within(footer).getByTestId('lead-cancel')).toBeInTheDocument();
+  expect(within(scroll).queryByTestId('lead-submit')).not.toBeInTheDocument();
+  // Archive/Delete stay in the scrollable body and still render.
+  expect(within(scroll).getByRole('button', { name: /Archive Lead/ })).toBeInTheDocument();
+  expect(within(scroll).getByRole('button', { name: /Delete Lead/ })).toBeInTheDocument();
 });
 
 test('search filters the list and the status filter works', async () => {

@@ -1,5 +1,7 @@
 // src/components/forms/LeadForm.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import { createPortal } from 'react-dom';
+import { ModalFooterContext } from '../ui/Modal';
 import { createLead, updateLead } from '../../api/leads';
 import { fetchCustomFields } from '../../api/customFields';
 import { getLeadFormSettings } from '../../api/leadFormSettings';
@@ -247,6 +249,10 @@ export default function LeadForm({ initialData, mode, onSuccess, onCancel }: Lea
     useState<FieldConfigMap>(DEFAULT_FIELD_CONFIG);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
+  // The enclosing Modal's fixed footer, when this form is rendered inside
+  // one — the submit/cancel actions portal into it so they stay visible
+  // without scrolling. Null when rendered outside a Modal.
+  const modalFooterEl = useContext(ModalFooterContext);
 
   // Prefill from initialData in edit mode, including custom_data.
   // `agent` is intentionally NOT kept: the backend forces the lead to the
@@ -533,8 +539,40 @@ export default function LeadForm({ initialData, mode, onSuccess, onCancel }: Lea
     }
   };
 
+  // Submit/Cancel actions. When the form is inside a Modal they are
+  // portaled into the modal's fixed footer (always visible on open);
+  // the submit button names the form via the `form` attribute because
+  // the portal places it outside the <form> element in the DOM, so it
+  // still triggers this form's submit. Rendered standalone (no Modal)
+  // the same buttons render inline at the end of the form as before.
+  const actions = (
+    <div className="flex items-center gap-3">
+      <button
+        type="submit"
+        form="lead-form"
+        data-testid="lead-submit"
+        disabled={submitting}
+        className={`px-6 py-2.5 text-white font-medium rounded-full ${
+          submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+        }`}
+      >
+        {submitting ? 'Submitting...' : mode === 'create' ? 'Create Lead' : 'Update Lead'}
+      </button>
+      {onCancel && (
+        <button
+          type="button"
+          data-testid="lead-cancel"
+          onClick={onCancel}
+          className="px-4 py-2.5 text-gray-700 font-medium rounded-full border border-gray-300 hover:bg-gray-100"
+        >
+          Cancel
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+    <form id="lead-form" onSubmit={handleSubmit} noValidate className="space-y-6">
       {/* Contact */}
       <fieldset className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
         <legend className="px-1 text-base font-semibold text-gray-900">Contact</legend>
@@ -732,28 +770,11 @@ export default function LeadForm({ initialData, mode, onSuccess, onCancel }: Lea
         </fieldset>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
-        <button
-          type="submit"
-          data-testid="lead-submit"
-          disabled={submitting}
-          className={`px-6 py-2.5 text-white font-medium rounded-full ${
-            submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-          }`}
-        >
-          {submitting ? 'Submitting...' : mode === 'create' ? 'Create Lead' : 'Update Lead'}
-        </button>
-        {onCancel && (
-          <button
-            type="button"
-            data-testid="lead-cancel"
-            onClick={onCancel}
-            className="px-4 py-2.5 text-gray-700 font-medium rounded-full border border-gray-300 hover:bg-gray-100"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
+      {modalFooterEl ? (
+        createPortal(actions, modalFooterEl)
+      ) : (
+        <div className="pt-1">{actions}</div>
+      )}
     </form>
   );
 }
