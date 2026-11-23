@@ -22,6 +22,161 @@ describe('LeadForm', () => {
     expect(screen.getByTestId('lead-email')).toBeInTheDocument();
   });
 
+  test('submits backend choice keys for lead source / preferred contact and omits agent', async () => {
+    let capturedBody: any = null;
+    server.use(
+      rest.post('http://localhost:8000/api/leads/', async (req, res, ctx) => {
+        capturedBody = await req.json();
+        return res(ctx.status(201), ctx.json({ id: 3, ...capturedBody }));
+      })
+    );
+
+    const mockSuccess = jest.fn();
+    renderWithProviders(<LeadForm mode="create" onSuccess={mockSuccess} />);
+    fireEvent.change(screen.getByTestId('lead-full_name'), { target: { value: 'Test User' } });
+    fireEvent.change(screen.getByTestId('lead-email'), { target: { value: 'test@example.com' } });
+    fireEvent.change(screen.getByTestId('lead-property_address'), { target: { value: '123 Main' } });
+    fireEvent.change(screen.getByTestId('lead-lead_source'), { target: { value: 'referral' } });
+    fireEvent.change(screen.getByTestId('lead-preferred_contact'), { target: { value: 'phone' } });
+    fireEvent.click(screen.getByTestId('lead-submit'));
+
+    await waitFor(() => expect(mockSuccess).toHaveBeenCalled());
+    expect(capturedBody.lead_source).toBe('referral');
+    expect(capturedBody.preferred_contact).toBe('phone');
+    expect(capturedBody).not.toHaveProperty('agent');
+  });
+
+  test('prefills the saved backend key in the dropdowns in edit mode', () => {
+    renderWithProviders(
+      <LeadForm
+        mode="edit"
+        initialData={{
+          id: 1,
+          full_name: 'Test User',
+          email: 'test@example.com',
+          phone: '',
+          property_address: '123 Main',
+          status: 'new',
+          agent: 1,
+          lead_source: 'walk_in',
+          preferred_contact: 'either',
+        }}
+        onSuccess={jest.fn()}
+      />
+    );
+    expect(screen.getByTestId('lead-lead_source')).toHaveValue('walk_in');
+    expect(screen.getByTestId('lead-preferred_contact')).toHaveValue('either');
+  });
+
+  test('surfaces a server 400 field error next to the field and in the toast', async () => {
+    server.use(
+      rest.post('http://localhost:8000/api/leads/', (req, res, ctx) => {
+        return res(
+          ctx.status(400),
+          ctx.json({ lead_source: ['"Referral" is not a valid choice.'] })
+        );
+      })
+    );
+
+    const mockSuccess = jest.fn();
+    renderWithProviders(<LeadForm mode="create" onSuccess={mockSuccess} />);
+    fireEvent.change(screen.getByTestId('lead-full_name'), { target: { value: 'Test User' } });
+    fireEvent.change(screen.getByTestId('lead-email'), { target: { value: 'test@example.com' } });
+    fireEvent.change(screen.getByTestId('lead-property_address'), { target: { value: '123 Main' } });
+    fireEvent.click(screen.getByTestId('lead-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lead-lead_source-error')).toHaveTextContent(
+        '"Referral" is not a valid choice.'
+      );
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining('not a valid choice')
+      );
+    });
+    expect(mockSuccess).not.toHaveBeenCalled();
+  });
+
+  test('surfaces a server detail message in the toast', async () => {
+    server.use(
+      rest.post('http://localhost:8000/api/leads/', (req, res, ctx) => {
+        return res(
+          ctx.status(400),
+          ctx.json({ detail: 'Trial limit reached: 50 leads max.' })
+        );
+      })
+    );
+
+    renderWithProviders(<LeadForm mode="create" onSuccess={jest.fn()} />);
+    fireEvent.change(screen.getByTestId('lead-full_name'), { target: { value: 'Test User' } });
+    fireEvent.change(screen.getByTestId('lead-email'), { target: { value: 'test@example.com' } });
+    fireEvent.change(screen.getByTestId('lead-property_address'), { target: { value: '123 Main' } });
+    fireEvent.click(screen.getByTestId('lead-submit'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'Trial limit reached: 50 leads max.'
+      );
+    });
+  });
+
+  test('rejects a phone longer than 20 characters client-side', async () => {
+    const mockSuccess = jest.fn();
+    renderWithProviders(<LeadForm mode="create" onSuccess={mockSuccess} />);
+    fireEvent.change(screen.getByTestId('lead-full_name'), { target: { value: 'Test User' } });
+    fireEvent.change(screen.getByTestId('lead-email'), { target: { value: 'test@example.com' } });
+    fireEvent.change(screen.getByTestId('lead-phone'), {
+      target: { value: '+1 (423) 555-01234567890' },
+    });
+    fireEvent.change(screen.getByTestId('lead-property_address'), { target: { value: '123 Main' } });
+    fireEvent.click(screen.getByTestId('lead-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Phone number must be 20 characters or fewer')).toBeInTheDocument();
+    });
+    expect(mockSuccess).not.toHaveBeenCalled();
+  });
+
+  test('stores a number custom field as a real number in custom_data', async () => {
+    let capturedBody: any = null;
+    server.use(
+      rest.get('http://localhost:8000/api/custom-fields/', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([
+            {
+              id: 1,
+              agent: 1,
+              name: 'budget',
+              label: 'Budget',
+              field_type: 'number',
+              required: false,
+              options: [],
+              order: 0,
+              is_active: true,
+            },
+          ])
+        );
+      }),
+      rest.post('http://localhost:8000/api/leads/', async (req, res, ctx) => {
+        capturedBody = await req.json();
+        return res(ctx.status(201), ctx.json({ id: 3, ...capturedBody }));
+      })
+    );
+
+    const mockSuccess = jest.fn();
+    renderWithProviders(<LeadForm mode="create" onSuccess={mockSuccess} />);
+    const budget = await screen.findByTestId('lead-custom-budget');
+    fireEvent.change(screen.getByTestId('lead-full_name'), { target: { value: 'Test User' } });
+    fireEvent.change(screen.getByTestId('lead-email'), { target: { value: 'test@example.com' } });
+    fireEvent.change(screen.getByTestId('lead-property_address'), { target: { value: '123 Main' } });
+    fireEvent.change(budget, { target: { value: '250000' } });
+    fireEvent.click(screen.getByTestId('lead-submit'));
+
+    await waitFor(() => expect(mockSuccess).toHaveBeenCalled());
+    expect(typeof capturedBody.custom_data.budget).toBe('number');
+    expect(capturedBody.custom_data.budget).toBe(250000);
+  });
+
   test('creates a lead and calls onSuccess', async () => {
     const mockSuccess = jest.fn();
     renderWithProviders(<LeadForm mode="create" onSuccess={mockSuccess} />);

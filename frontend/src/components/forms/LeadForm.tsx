@@ -16,20 +16,44 @@ interface LeadFormProps {
   initialData?: any;
   mode: 'create' | 'edit';
   onSuccess: () => void;
+  /** Optional Cancel handler (e.g. close the enclosing modal). */
+  onCancel?: () => void;
 }
 
-const LEAD_SOURCE_OPTIONS = [
-  'Referral',
-  'Website',
-  'Walk-in',
-  'Social Media',
-  'Advertising',
-  'Other',
+// Backend choice keys (see backend/leads/models.py) with their display
+// labels. The <option> value MUST be the backend key — sending the display
+// label used to fail with a 400 ("not a valid choice") and left the
+// dropdown blank in edit mode because the saved key matched no option.
+export const LEAD_SOURCE_OPTIONS = [
+  { value: 'referral', label: 'Referral' },
+  { value: 'website', label: 'Website' },
+  { value: 'walk_in', label: 'Walk-in' },
+  { value: 'social_media', label: 'Social Media' },
+  { value: 'advertising', label: 'Advertising' },
+  { value: 'other', label: 'Other' },
 ];
 
-const PREFERRED_CONTACT_OPTIONS = ['Email', 'Phone', 'Either'];
+export const PREFERRED_CONTACT_OPTIONS = [
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'either', label: 'Either' },
+];
 
-const STATUS_OPTIONS = [
+export function leadSourceLabel(value?: string | null): string {
+  if (!value) return '—';
+  return (
+    LEAD_SOURCE_OPTIONS.find((o) => o.value === value)?.label ?? value
+  );
+}
+
+export function preferredContactLabel(value?: string | null): string {
+  if (!value) return '—';
+  return (
+    PREFERRED_CONTACT_OPTIONS.find((o) => o.value === value)?.label ?? value
+  );
+}
+
+export const STATUS_OPTIONS = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },
   { value: 'qualified', label: 'Qualified' },
@@ -37,10 +61,16 @@ const STATUS_OPTIONS = [
   { value: 'lost', label: 'Lost' },
 ];
 
+export function statusLabel(value?: string | null): string {
+  if (!value) return '—';
+  return STATUS_OPTIONS.find((o) => o.value === value)?.label ?? value;
+}
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// Digits, spaces, parentheses, dashes, optional leading +, at least
-// 7 characters in total.
-const PHONE_PATTERN = /^\+?[0-9\s()\-]{7,}$/;
+// Digits, spaces, parentheses, dashes, optional leading +, 7–20 chars.
+// The 20-char cap matches the backend (Lead.phone max_length=20).
+export const PHONE_PATTERN = /^\+?[0-9\s()\-]{7,20}$/;
+export const PHONE_MAX_LENGTH = 20;
 
 interface FormValues {
   full_name: string;
@@ -52,7 +82,6 @@ interface FormValues {
   preferred_contact: string;
   status: string;
   notes: string;
-  agent: number;
 }
 
 const EMPTY_VALUES: FormValues = {
@@ -65,10 +94,45 @@ const EMPTY_VALUES: FormValues = {
   preferred_contact: '',
   status: 'new',
   notes: '',
-  agent: 1,
 };
 
 type Errors = Record<string, string>;
+
+/** Pull per-field errors out of a DRF 400 body, e.g. { lead_source: ["..."] }. */
+export function extractFieldErrors(err: unknown): Errors {
+  const data = (err as { response?: { data?: unknown } } | null)?.response
+    ?.data;
+  if (!data || typeof data !== 'object') return {};
+  const out: Errors = {};
+  const toMessage = (value: unknown): string => {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+      return value
+        .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+        .join(' ');
+    }
+    return '';
+  };
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    // Top-level detail/message/non_field_errors are shown in the toast,
+    // not next to a field.
+    if (['detail', 'message', 'error', 'non_field_errors'].includes(key)) {
+      continue;
+    }
+    if (key === 'custom_data' && value && typeof value === 'object') {
+      for (const [name, nested] of Object.entries(
+        value as Record<string, unknown>
+      )) {
+        const msg = toMessage(nested);
+        if (msg) out[`custom:${name}`] = msg;
+      }
+      continue;
+    }
+    const msg = toMessage(value);
+    if (msg) out[key] = msg;
+  }
+  return out;
+}
 
 function validateField(
   name: string,
@@ -86,13 +150,18 @@ function validateField(
       return EMAIL_PATTERN.test(values.email.trim())
         ? null
         : 'Enter a valid email address';
-    case 'phone':
+    case 'phone': {
       if (!values.phone.trim()) {
         return fieldConfig.phone.required ? 'Phone is required' : null;
       }
-      return PHONE_PATTERN.test(values.phone.trim())
+      const phone = values.phone.trim();
+      if (phone.length > PHONE_MAX_LENGTH) {
+        return `Phone number must be ${PHONE_MAX_LENGTH} characters or fewer`;
+      }
+      return PHONE_PATTERN.test(phone)
         ? null
         : 'Enter a valid phone number';
+    }
     case 'company':
       return fieldConfig.company.required && !values.company.trim()
         ? 'Company is required'
@@ -170,7 +239,7 @@ function validateAll(
   return errors;
 }
 
-export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps) {
+export default function LeadForm({ initialData, mode, onSuccess, onCancel }: LeadFormProps) {
   const [formData, setFormData] = useState<FormValues>(EMPTY_VALUES);
   const [customData, setCustomData] = useState<Record<string, any>>({});
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
@@ -180,6 +249,8 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
   const [submitting, setSubmitting] = useState(false);
 
   // Prefill from initialData in edit mode, including custom_data.
+  // `agent` is intentionally NOT kept: the backend forces the lead to the
+  // logged-in user on create/update, so the form must not assume an id.
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -192,7 +263,6 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
         preferred_contact: initialData.preferred_contact ?? '',
         status: initialData.status ?? 'new',
         notes: initialData.notes ?? '',
-        agent: initialData.agent ?? 1,
       });
       setCustomData(initialData.custom_data ?? {});
     }
@@ -235,7 +305,14 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
   };
 
   const handleCustomChange = (field: CustomField, value: string | boolean) => {
-    const next = { ...customData, [field.name]: value };
+    // Number custom fields store a real number in custom_data, not a string.
+    const stored =
+      field.field_type === 'number' && typeof value === 'string'
+        ? value === ''
+          ? ''
+          : Number(value)
+        : value;
+    const next = { ...customData, [field.name]: stored };
     setCustomData(next);
     const key = `custom:${field.name}`;
     if (errors[key]) {
@@ -259,6 +336,8 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
     }
     setSubmitting(true);
     try {
+      // No `agent` in the payload: the backend forces it to the logged-in
+      // user, so sending a hardcoded id (previously 1) was wrong.
       const payload = { ...formData, custom_data: customData };
       if (mode === 'create') {
         await createLead(payload);
@@ -270,8 +349,13 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
       onSuccess();
     } catch (err) {
       console.error('Error submitting lead:', err);
-      // Surface the backend's plain message (e.g. a trial quota error)
-      // instead of the generic fallback.
+      // Surface the backend's errors: field errors go next to the matching
+      // field; the message (detail / field errors joined) goes in the toast
+      // so a 400 is never just a bare generic error.
+      const fieldErrors = extractFieldErrors(err);
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+      }
       toast.error(extractErrorMessage(err, 'Error submitting lead'));
     } finally {
       setSubmitting(false);
@@ -279,11 +363,15 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
   };
 
   const inputClass = (hasError: boolean) =>
-    `w-full p-2 border rounded ${hasError ? 'border-red-500' : ''}`;
+    `w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 ${
+      hasError ? 'border-red-500' : 'border-gray-300'
+    }`;
+
+  const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
 
   const renderError = (key: string) =>
     errors[key] ? (
-      <p data-testid={`lead-${key.replace('custom:', 'custom-')}-error`} className="text-sm text-red-600">
+      <p data-testid={`lead-${key.replace('custom:', 'custom-')}-error`} className="mt-1 text-sm text-red-600">
         {errors[key]}
       </p>
     ) : null;
@@ -294,7 +382,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
     const hasError = Boolean(errors[errorKey]);
     const value = customData[field.name] ?? '';
     const label = (
-      <label htmlFor={testId} className="block text-sm font-medium">
+      <label htmlFor={testId} className={labelClass}>
         {field.label}
         {field.required ? ' *' : ''}
       </label>
@@ -446,12 +534,12 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
   };
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6 p-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {/* Contact */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-semibold">Contact</legend>
+      <fieldset className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+        <legend className="px-1 text-base font-semibold text-gray-900">Contact</legend>
         <div>
-          <label htmlFor="lead-full_name" className="block text-sm font-medium">
+          <label htmlFor="lead-full_name" className={labelClass}>
             Full Name *
           </label>
           <input
@@ -467,7 +555,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
           {renderError('full_name')}
         </div>
         <div>
-          <label htmlFor="lead-email" className="block text-sm font-medium">
+          <label htmlFor="lead-email" className={labelClass}>
             Email *
           </label>
           <input
@@ -484,7 +572,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
         </div>
         {fieldConfig.phone.visible && (
           <div>
-            <label htmlFor="lead-phone" className="block text-sm font-medium">
+            <label htmlFor="lead-phone" className={labelClass}>
               Phone{fieldConfig.phone.required ? ' *' : ''}
             </label>
             <input
@@ -502,7 +590,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
         )}
         {fieldConfig.company.visible && (
           <div>
-            <label htmlFor="lead-company" className="block text-sm font-medium">
+            <label htmlFor="lead-company" className={labelClass}>
               Company{fieldConfig.company.required ? ' *' : ''}
             </label>
             <input
@@ -521,13 +609,13 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
       </fieldset>
 
       {/* Details */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-semibold">Details</legend>
+      <fieldset className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+        <legend className="px-1 text-base font-semibold text-gray-900">Details</legend>
         {fieldConfig.property_address.visible && (
           <div>
             <label
               htmlFor="lead-property_address"
-              className="block text-sm font-medium"
+              className={labelClass}
             >
               Property Address{fieldConfig.property_address.required ? ' *' : ''}
             </label>
@@ -546,7 +634,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
         )}
         {fieldConfig.lead_source.visible && (
           <div>
-            <label htmlFor="lead-lead_source" className="block text-sm font-medium">
+            <label htmlFor="lead-lead_source" className={labelClass}>
               Lead Source{fieldConfig.lead_source.required ? ' *' : ''}
             </label>
             <select
@@ -559,8 +647,8 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
             >
               <option value="">—</option>
               {LEAD_SOURCE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -571,7 +659,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
           <div>
             <label
               htmlFor="lead-preferred_contact"
-              className="block text-sm font-medium"
+              className={labelClass}
             >
               Preferred Contact{fieldConfig.preferred_contact.required ? ' *' : ''}
             </label>
@@ -585,8 +673,8 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
             >
               <option value="">—</option>
               {PREFERRED_CONTACT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -596,10 +684,10 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
       </fieldset>
 
       {/* Lead Info */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-semibold">Lead Info</legend>
+      <fieldset className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+        <legend className="px-1 text-base font-semibold text-gray-900">Lead Info</legend>
         <div>
-          <label htmlFor="lead-status" className="block text-sm font-medium">
+          <label htmlFor="lead-status" className={labelClass}>
             Status
           </label>
           <select
@@ -608,7 +696,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
             data-testid="lead-status"
             value={formData.status}
             onChange={handleChange}
-            className="w-full p-2 border rounded"
+            className={inputClass(false)}
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -619,7 +707,7 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
         </div>
         {fieldConfig.notes.visible && (
           <div>
-            <label htmlFor="lead-notes" className="block text-sm font-medium">
+            <label htmlFor="lead-notes" className={labelClass}>
               Notes{fieldConfig.notes.required ? ' *' : ''}
             </label>
             <textarea
@@ -638,22 +726,34 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
 
       {/* Custom Fields */}
       {customFields.length > 0 && (
-        <fieldset className="space-y-4">
-          <legend className="text-base font-semibold">Custom Fields</legend>
+        <fieldset className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+          <legend className="px-1 text-base font-semibold text-gray-900">Custom Fields</legend>
           {customFields.map(renderCustomField)}
         </fieldset>
       )}
 
-      <button
-        type="submit"
-        data-testid="lead-submit"
-        disabled={submitting}
-        className={`px-4 py-2 text-white rounded ${
-          submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600'
-        }`}
-      >
-        {submitting ? 'Submitting...' : mode === 'create' ? 'Create Lead' : 'Update Lead'}
-      </button>
+      <div className="flex items-center gap-3 pt-1">
+        <button
+          type="submit"
+          data-testid="lead-submit"
+          disabled={submitting}
+          className={`px-6 py-2.5 text-white font-medium rounded-full ${
+            submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {submitting ? 'Submitting...' : mode === 'create' ? 'Create Lead' : 'Update Lead'}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            data-testid="lead-cancel"
+            onClick={onCancel}
+            className="px-4 py-2.5 text-gray-700 font-medium rounded-full border border-gray-300 hover:bg-gray-100"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }

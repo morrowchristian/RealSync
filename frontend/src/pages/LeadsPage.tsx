@@ -1,14 +1,105 @@
 import { useEffect, useState } from 'react';
 import { fetchLeads, fetchLead, archiveLead, deleteLead } from '../api/leads';
+import { fetchCustomFields } from '../api/customFields';
 import LeadForm from '../components/forms/LeadForm';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import ContactCard from '../components/ui/ContactCard';
 import { toast } from 'react-toastify';
 import StatusTabs from '../components/ui/StatusTabs';
 import EmptyState from '../components/ui/EmptyState';
 import type { Lead } from '../types/lead';
-import { fetchCurrentAgent } from '../api/agent';
+import type { CustomField } from '../types/customField';
+import { fetchCurrentAgent, type AgentProfile } from '../api/agent';
 import { LEAD_LIMIT } from '../utils/trial';
+
+// Kebab (three-dot) row menu: Edit / Archive / Delete, wired to the
+// page's existing handlers. Clicks stop propagation so opening the menu
+// (or picking an action) does not also select the row.
+function RowMenu({
+  lead,
+  onEdit,
+  onArchive,
+  onDelete,
+}: {
+  lead: Lead;
+  onEdit: (lead: Lead) => void;
+  onArchive: (lead: Lead) => void;
+  onDelete: (lead: Lead) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label={`Actions for ${lead.full_name}`}
+        data-testid={`lead-kebab-${lead.id}`}
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((prev) => !prev);
+        }}
+        className="px-2 py-1 text-lg leading-none text-gray-500 rounded hover:bg-gray-100"
+      >
+        ⋮
+      </button>
+      {open && (
+        <div
+          data-testid={`lead-menu-${lead.id}`}
+          className="absolute right-0 z-10 mt-1 w-36 rounded-lg border border-gray-200 bg-white shadow-lg py-1"
+        >
+          <button
+            type="button"
+            data-testid={`lead-menu-edit-${lead.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onEdit(lead);
+            }}
+            className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            data-testid={`lead-menu-archive-${lead.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onArchive(lead);
+            }}
+            className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+          >
+            Archive
+          </button>
+          <button
+            type="button"
+            data-testid={`lead-menu-delete-${lead.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onDelete(lead);
+            }}
+            className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatShortDate(value?: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 export default function LeadsPage() {
   // --------------------------- State ---------------------------
@@ -25,13 +116,23 @@ export default function LeadsPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'sheet'>('cards');
   // Trial accounts are capped at LEAD_LIMIT leads; null = unknown / full.
   const [isTrial, setIsTrial] = useState<boolean>(false);
+  // Custom-field definitions, for labelling custom_data on the contact card.
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  // Signed-in agent, for the contact card's Owner row.
+  const [currentAgent, setCurrentAgent] = useState<AgentProfile | null>(null);
 
   const statusOptions: string[] = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
 
   // --------------------------- Effects ---------------------------
   useEffect(() => {
     fetchLeads().then(data => setLeads(data)).finally(() => setLoading(false));
-    fetchCurrentAgent().then((agent) => setIsTrial(agent?.is_trial ?? false));
+    fetchCurrentAgent().then((agent) => {
+      setCurrentAgent(agent);
+      setIsTrial(agent?.is_trial ?? false);
+    });
+    fetchCustomFields()
+      .then((fields) => setCustomFields(fields.filter((f) => f.is_active)))
+      .catch(() => setCustomFields([]));
   }, []);
 
   // --------------------------- Handlers ---------------------------
@@ -40,15 +141,18 @@ export default function LeadsPage() {
   const filteredLeads = leads.filter((lead) => {
     const matchesStatus =
       statusFilter === 'All' || lead.status.toLowerCase() === statusFilter.toLowerCase();
+    const q = search.toLowerCase();
     const matchesSearch =
-      lead.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      lead.status.toLowerCase().includes(search.toLowerCase()) ||
+      lead.full_name.toLowerCase().includes(q) ||
+      lead.email.toLowerCase().includes(q) ||
+      (lead.company ?? '').toLowerCase().includes(q) ||
+      lead.status.toLowerCase().includes(q) ||
       lead.id.toString().includes(search);
     return matchesStatus && matchesSearch;
   });
 
   // Selecting a lead (clicking a card or a sheet row) fetches the fresh
-  // record and shows the detail panel + Edit Lead button.
+  // record and shows the contact card.
   const handleSelectLead = (id: number): void => {
     fetchLead(id).then(setSelectedLead);
   };
@@ -56,6 +160,22 @@ export default function LeadsPage() {
   const closeModal = (): void => {
     setModalOpen(false);
     setConfirmAction(null);
+  };
+
+  const openEditModal = (lead: Lead): void => {
+    setSelectedLead(lead);
+    setEditMode(true);
+    setModalOpen(true);
+  };
+
+  const requestArchive = (lead: Lead): void => {
+    setSelectedLead(lead);
+    setConfirmAction('archive');
+  };
+
+  const requestDelete = (lead: Lead): void => {
+    setSelectedLead(lead);
+    setConfirmAction('delete');
   };
 
   const handleArchive = async (): Promise<void> => {
@@ -90,146 +210,214 @@ export default function LeadsPage() {
     }
   };
 
+  const ownerName =
+    selectedLead && currentAgent && currentAgent.id === selectedLead.agent
+      ? [currentAgent.first_name, currentAgent.last_name]
+          .filter(Boolean)
+          .join(' ') || currentAgent.username
+      : undefined;
+
   if (loading) return <p className="p-4">Loading leads...</p>;
 
   return (
     <div className="p-4 space-y-4">
-      {/* Controls */}
-      <div className="sticky top-0 bg-white pb-2 space-y-2">
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setSelectedLead(null);
-              setEditMode(false);
-              setModalOpen(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
-            + New Lead
-          </button>
+      {/* Selected lead — full contact card (replaces the old 4-field panel) */}
+      {selectedLead && (
+        <ContactCard
+          lead={selectedLead}
+          customFields={customFields}
+          ownerName={ownerName}
+          onBack={() => setSelectedLead(null)}
+          onEdit={() => openEditModal(selectedLead)}
+          onUpdated={() => {
+            fetchLead(selectedLead.id).then(setSelectedLead);
+            refetchLeads();
+          }}
+        />
+      )}
 
-          {selectedLead && (
+      {/* Leads list — clean white table card (Dribbble polish) */}
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 px-5 pt-5 pb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
+            <p className="text-sm text-gray-500">
+              Total {leads.length}
+              {filteredLeads.length !== leads.length &&
+                ` · ${filteredLeads.length} shown`}
+            </p>
+            {isTrial && (
+              <p data-testid="leads-quota" className="text-sm text-gray-600">
+                {leads.length} / {LEAD_LIMIT} leads
+              </p>
+            )}
+          </div>
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search leads by name, email, or status..."
+              aria-label="Search leads"
+              data-testid="leads-search"
+              className="px-3 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <label className="sr-only" htmlFor="leads-filter">
+              Filter by status
+            </label>
+            <select
+              id="leads-filter"
+              data-testid="leads-filter"
+              aria-label="Filter by status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-full text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status === 'All' ? 'Filter: All' : status}
+                </option>
+              ))}
+            </select>
             <button
               onClick={() => {
-                setEditMode(true);
+                setSelectedLead(null);
+                setEditMode(false);
                 setModalOpen(true);
               }}
-              className="px-4 py-2 bg-yellow-500 text-white rounded"
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-full hover:bg-blue-700"
             >
-              ✏️ Edit Lead
+              + New Lead
             </button>
-          )}
 
-          {/* Cards / Sheet view toggle */}
-          <div className="ml-auto flex rounded overflow-hidden border border-gray-300">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-3 py-2 text-sm ${
-                viewMode === 'cards'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Cards
-            </button>
-            <button
-              onClick={() => setViewMode('sheet')}
-              className={`px-3 py-2 text-sm ${
-                viewMode === 'sheet'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Sheet
-            </button>
+            {/* Cards / Sheet view toggle */}
+            <div className="flex rounded-full overflow-hidden border border-gray-300">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`px-3 py-2 text-sm ${
+                  viewMode === 'cards'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Cards
+              </button>
+              <button
+                onClick={() => setViewMode('sheet')}
+                className={`px-3 py-2 text-sm ${
+                  viewMode === 'sheet'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Sheet
+              </button>
+            </div>
           </div>
         </div>
 
-        <StatusTabs
-          statuses={statusOptions}
-          activeStatus={statusFilter}
-          onSelect={setStatusFilter}
-        />
-
-        <input
-          type="text"
-          placeholder="Search leads by ID, name, or status..."
-          className="w-full p-2 border rounded-md"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {/* Selected Lead */}
-      {selectedLead && (
-        <div className="p-4 bg-gray-100 rounded shadow">
-          <h2 className="text-xl font-bold mb-2">
-            Lead #{selectedLead.id}: {selectedLead.full_name}
-          </h2>
-          <p>Email: {selectedLead.email}</p>
-          <p>Phone: {selectedLead.phone}</p>
-          <p>Property: {selectedLead.property_address}</p>
-          <p>Status: {selectedLead.status}</p>
+        <div className="px-5 pb-2">
+          <StatusTabs
+            statuses={statusOptions}
+            activeStatus={statusFilter}
+            onSelect={setStatusFilter}
+          />
         </div>
-      )}
 
-      {/* Lead List */}
-      <h1 className="text-2xl font-bold mt-4">All Leads</h1>
-      {isTrial && (
-        <p data-testid="leads-quota" className="text-sm text-gray-600">
-          {leads.length} / {LEAD_LIMIT} leads
-        </p>
-      )}
-      {filteredLeads.length === 0 ? (
-        <EmptyState message="No leads found." />
-      ) : viewMode === 'cards' ? (
-        <ul className="space-y-2">
-          {filteredLeads.map((lead) => (
-            <li
-              key={lead.id}
-              onClick={() => handleSelectLead(lead.id)}
-              className={`p-4 bg-white rounded shadow cursor-pointer hover:shadow-md hover:bg-gray-50 transition ${
-                selectedLead?.id === lead.id ? 'ring-2 ring-blue-600' : ''
-              }`}
-            >
-              <p className="font-semibold">{lead.full_name}</p>
-              <p className="text-sm text-gray-600">{lead.property_address}</p>
-              <p className="text-sm text-gray-500">Status: {lead.status}</p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="overflow-x-auto bg-white rounded shadow">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-sm text-gray-600">
-                <th className="px-4 py-2 font-semibold">ID</th>
-                <th className="px-4 py-2 font-semibold">Name</th>
-                <th className="px-4 py-2 font-semibold">Email</th>
-                <th className="px-4 py-2 font-semibold">Phone</th>
-                <th className="px-4 py-2 font-semibold">Property Address</th>
-                <th className="px-4 py-2 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLeads.map((lead) => (
-                <tr
-                  key={lead.id}
-                  onClick={() => handleSelectLead(lead.id)}
-                  className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
-                    selectedLead?.id === lead.id ? 'bg-blue-50' : ''
-                  }`}
-                >
-                  <td className="px-4 py-2">#{lead.id}</td>
-                  <td className="px-4 py-2 font-semibold">{lead.full_name}</td>
-                  <td className="px-4 py-2">{lead.email}</td>
-                  <td className="px-4 py-2">{lead.phone}</td>
-                  <td className="px-4 py-2">{lead.property_address}</td>
-                  <td className="px-4 py-2">{lead.status}</td>
+        {filteredLeads.length === 0 ? (
+          <div className="px-5 pb-5">
+            <EmptyState message="No leads found." />
+          </div>
+        ) : viewMode === 'cards' ? (
+          <ul className="divide-y divide-gray-100 px-2 pb-2">
+            {filteredLeads.map((lead) => (
+              <li
+                key={lead.id}
+                onClick={() => handleSelectLead(lead.id)}
+                className={`flex items-start justify-between gap-2 px-3 py-4 rounded-lg cursor-pointer hover:bg-gray-50 transition ${
+                  selectedLead?.id === lead.id ? 'ring-2 ring-blue-600' : ''
+                }`}
+              >
+                <div>
+                  <p className="font-semibold text-gray-900">{lead.full_name}</p>
+                  <p className="text-sm text-gray-500">{lead.email}</p>
+                  <p className="text-sm text-gray-600">{lead.property_address}</p>
+                  <p className="text-sm text-gray-500">{lead.status}</p>
+                </div>
+                <RowMenu
+                  lead={lead}
+                  onEdit={openEditModal}
+                  onArchive={requestArchive}
+                  onDelete={requestDelete}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="overflow-x-auto pb-2">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-xs text-gray-500 border-y border-gray-100">
+                  <th className="px-5 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">Phone</th>
+                  <th className="px-4 py-3 font-semibold">Property Address</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredLeads.map((lead) => (
+                  <tr
+                    key={lead.id}
+                    onClick={() => handleSelectLead(lead.id)}
+                    className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                      selectedLead?.id === lead.id ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-gray-900">{lead.full_name}</p>
+                      <p className="text-sm text-gray-500">{lead.email}</p>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{lead.phone}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{lead.property_address}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{lead.status}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700">
+                      {formatShortDate(lead.created_at)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <RowMenu
+                        lead={lead}
+                        onEdit={openEditModal}
+                        onArchive={requestArchive}
+                        onDelete={requestDelete}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* In-app confirm for kebab Archive/Delete (outside the modal) */}
+      {confirmAction && selectedLead && !isModalOpen && (
+        <div className="mt-4">
+          <ConfirmDialog
+            message={
+              confirmAction === 'archive'
+                ? `Archive Lead #${selectedLead.id}? The lead will move to Archived Leads and can be restored later.`
+                : `Permanently delete Lead #${selectedLead.id}? This cannot be undone.`
+            }
+            confirmLabel={confirmAction === 'archive' ? 'Yes, archive' : 'Yes, delete'}
+            variant={confirmAction === 'archive' ? 'warn' : 'danger'}
+            onConfirm={confirmAction === 'archive' ? handleArchive : handleDelete}
+            onCancel={() => setConfirmAction(null)}
+          />
         </div>
       )}
 
@@ -242,8 +430,9 @@ export default function LeadsPage() {
         <LeadForm
           initialData={editMode ? selectedLead : undefined}
           mode={editMode ? 'edit' : 'create'}
+          onCancel={closeModal}
           onSuccess={() => {
-            // Refresh the selected lead so the detail panel and the next
+            // Refresh the selected lead so the contact card and the next
             // Edit prefill show the updated values (not the stale object).
             if (editMode && selectedLead) {
               fetchLead(selectedLead.id).then(setSelectedLead);
