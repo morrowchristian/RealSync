@@ -19,6 +19,8 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   // Which destructive action is awaiting in-app confirmation, if any.
   const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
+  // Cards or spreadsheet view for the lead list; defaults to Cards.
+  const [viewMode, setViewMode] = useState<'cards' | 'sheet'>('cards');
 
   const statusOptions: string[] = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
 
@@ -40,8 +42,9 @@ export default function LeadsPage() {
     return matchesStatus && matchesSearch;
   });
 
-  const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    const id = Number(e.target.value);
+  // Selecting a lead (clicking a card or a sheet row) fetches the fresh
+  // record and shows the detail panel + Edit Lead button.
+  const handleSelectLead = (id: number): void => {
     fetchLead(id).then(setSelectedLead);
   };
 
@@ -111,6 +114,30 @@ export default function LeadsPage() {
               ✏️ Edit Lead
             </button>
           )}
+
+          {/* Cards / Sheet view toggle */}
+          <div className="ml-auto flex rounded overflow-hidden border border-gray-300">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-3 py-2 text-sm ${
+                viewMode === 'cards'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Cards
+            </button>
+            <button
+              onClick={() => setViewMode('sheet')}
+              className={`px-3 py-2 text-sm ${
+                viewMode === 'sheet'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Sheet
+            </button>
+          </div>
         </div>
 
         <StatusTabs
@@ -126,19 +153,6 @@ export default function LeadsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-
-        <select
-          className="w-full p-2 border rounded-md"
-          onChange={handleSelect}
-          defaultValue=""
-        >
-          <option value="" disabled>Select a lead</option>
-          {filteredLeads.map((lead) => (
-            <option key={lead.id} value={lead.id}>
-              #{lead.id} – {lead.full_name}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Selected Lead */}
@@ -158,16 +172,55 @@ export default function LeadsPage() {
       <h1 className="text-2xl font-bold mt-4">All Leads</h1>
       {filteredLeads.length === 0 ? (
         <EmptyState message="No leads found." />
-      ) : (
+      ) : viewMode === 'cards' ? (
         <ul className="space-y-2">
           {filteredLeads.map((lead) => (
-            <li key={lead.id} className="p-4 bg-white rounded shadow">
+            <li
+              key={lead.id}
+              onClick={() => handleSelectLead(lead.id)}
+              className={`p-4 bg-white rounded shadow cursor-pointer hover:shadow-md hover:bg-gray-50 transition ${
+                selectedLead?.id === lead.id ? 'ring-2 ring-blue-600' : ''
+              }`}
+            >
               <p className="font-semibold">{lead.full_name}</p>
               <p className="text-sm text-gray-600">{lead.property_address}</p>
               <p className="text-sm text-gray-500">Status: {lead.status}</p>
             </li>
           ))}
         </ul>
+      ) : (
+        <div className="overflow-x-auto bg-white rounded shadow">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50 text-sm text-gray-600">
+                <th className="px-4 py-2 font-semibold">ID</th>
+                <th className="px-4 py-2 font-semibold">Name</th>
+                <th className="px-4 py-2 font-semibold">Email</th>
+                <th className="px-4 py-2 font-semibold">Phone</th>
+                <th className="px-4 py-2 font-semibold">Property Address</th>
+                <th className="px-4 py-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLeads.map((lead) => (
+                <tr
+                  key={lead.id}
+                  onClick={() => handleSelectLead(lead.id)}
+                  className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                    selectedLead?.id === lead.id ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <td className="px-4 py-2">#{lead.id}</td>
+                  <td className="px-4 py-2 font-semibold">{lead.full_name}</td>
+                  <td className="px-4 py-2">{lead.email}</td>
+                  <td className="px-4 py-2">{lead.phone}</td>
+                  <td className="px-4 py-2">{lead.property_address}</td>
+                  <td className="px-4 py-2">{lead.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Modal */}
