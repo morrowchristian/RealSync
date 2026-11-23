@@ -7,6 +7,8 @@ import { toast } from 'react-toastify';
 import StatusTabs from '../components/ui/StatusTabs';
 import EmptyState from '../components/ui/EmptyState';
 import type { Lead } from '../types/lead';
+import { fetchCurrentAgent } from '../api/agent';
+import { LEAD_LIMIT } from '../utils/trial';
 
 export default function LeadsPage() {
   // --------------------------- State ---------------------------
@@ -21,12 +23,15 @@ export default function LeadsPage() {
   const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
   // Cards or spreadsheet view for the lead list; defaults to Cards.
   const [viewMode, setViewMode] = useState<'cards' | 'sheet'>('cards');
+  // Trial accounts are capped at LEAD_LIMIT leads; null = unknown / full.
+  const [isTrial, setIsTrial] = useState<boolean>(false);
 
   const statusOptions: string[] = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
 
   // --------------------------- Effects ---------------------------
   useEffect(() => {
     fetchLeads().then(data => setLeads(data)).finally(() => setLoading(false));
+    fetchCurrentAgent().then((agent) => setIsTrial(agent?.is_trial ?? false));
   }, []);
 
   // --------------------------- Handlers ---------------------------
@@ -170,6 +175,11 @@ export default function LeadsPage() {
 
       {/* Lead List */}
       <h1 className="text-2xl font-bold mt-4">All Leads</h1>
+      {isTrial && (
+        <p data-testid="leads-quota" className="text-sm text-gray-600">
+          {leads.length} / {LEAD_LIMIT} leads
+        </p>
+      )}
       {filteredLeads.length === 0 ? (
         <EmptyState message="No leads found." />
       ) : viewMode === 'cards' ? (

@@ -1,0 +1,26 @@
+# .github/workflows/cleanup-expired-trials.yml
+# Daily cleanup of expired trial accounts.
+#
+# Setup required (names only — never put a token value in this file):
+#   - Render: set the CLEANUP_TOKEN env var on the realsync-backend service.
+#   - GitHub: set the CLEANUP_TOKEN secret on this repo
+#     (Settings -> Secrets and variables -> Actions).
+# Both must hold the SAME token value; the endpoint refuses every call
+# (403) while the Render env var is unset.
+name: Cleanup expired trials
+
+on:
+  schedule:
+    # Daily at 03:00 UTC.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call cleanup endpoint
+        run: |
+          curl -sS -X POST https://realsync-backend.onrender.com/api/admin/cleanup-expired-trials/ \
+            -H "Authorization: Bearer ${{ secrets.CLEANUP_TOKEN }}" \
+            -H "Content-Type: application/json"

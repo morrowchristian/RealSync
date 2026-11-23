@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import api from '../api/axios';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { extractErrorMessage } from '../utils/trial';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -16,8 +17,10 @@ export default function LoginPage() {
       localStorage.setItem('refresh', response.data.refresh);
       toast.success('Login successful');
       navigate('/leads');
-    } catch {
-      toast.error('Invalid credentials');
+    } catch (err) {
+      // Surface the server's message (e.g. a trial-expired error)
+      // instead of always blaming the credentials.
+      toast.error(extractErrorMessage(err, 'Invalid credentials'));
     }
   };
 
@@ -44,6 +47,17 @@ export default function LoginPage() {
       >
         Log In
       </button>
+      <p className="text-sm text-gray-600">
+        Don&apos;t have an account?{' '}
+        <Link to="/signup" className="text-blue-500 underline">
+          Sign up
+        </Link>
+      </p>
+      <p className="text-sm text-gray-600">
+        <Link to="/demo" className="text-blue-500 underline">
+          View a read-only demo
+        </Link>
+      </p>
     </div>
   );
 }

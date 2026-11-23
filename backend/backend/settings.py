@@ -232,6 +232,17 @@ else:
     CORS_ALLOW_ALL_ORIGINS = True
 
 # -----------------------------------------------------------
+# Trial accounts (public signup)
+# -----------------------------------------------------------
+# Public signups get a trial that lasts TRIAL_DAYS days from
+# date_joined, with per-account creation quotas while on trial.
+# The owner (non-trial) account is never quota-limited or deleted.
+TRIAL_DAYS = 5
+TRIAL_LEAD_LIMIT = 50
+TRIAL_CONTRACT_LIMIT = 20
+TRIAL_CUSTOM_FIELD_LIMIT = 10
+
+# -----------------------------------------------------------
 # Default Field
 # -----------------------------------------------------------
 

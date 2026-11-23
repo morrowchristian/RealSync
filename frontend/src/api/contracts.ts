@@ -23,18 +23,22 @@ export const fetchContract = (id: number): Promise<Contract> =>
     "Failed to fetch contract"
   );
 
-// Create a new contract (with file upload support)
+// Create a new contract (with file upload support; silent: ContractForm
+// owns the error display and toasts the backend's plain message, e.g. a
+// trial quota error, itself).
 export const createContract = (data: FormData): Promise<Contract> =>
-  handleRequest(() =>
-    api.post('contracts/', data).then(res => res.data),
-    "Failed to create contract"
+  handleRequest(
+    () => api.post('contracts/', data).then(res => res.data),
+    "Failed to create contract",
+    { silent: true }
   );
 
-// Update an existing contract
+// Update an existing contract (silent: see createContract).
 export const updateContract = (id: number, data: FormData): Promise<Contract> =>
-  handleRequest(() =>
-    api.put(`contracts/${id}/`, data).then(res => res.data),
-    "Failed to update contract"
+  handleRequest(
+    () => api.put(`contracts/${id}/`, data).then(res => res.data),
+    "Failed to update contract",
+    { silent: true }
   );
 
 // Permanently delete a contract

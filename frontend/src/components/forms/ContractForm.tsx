@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { createContract, updateContract } from '../../api/contracts';
 import { toast } from 'react-toastify';
+import { extractErrorMessage } from '../../utils/trial';
 
 interface ContractFormProps {
   initialData?: any;
@@ -59,7 +60,9 @@ export default function ContractForm({ initialData, leads, mode, onSuccess }: Co
       onSuccess();
     } catch (err) {
       console.error('Error submitting contract:', err);
-      toast.error('Error submitting contract');
+      // Surface the backend's plain message (e.g. a trial quota error)
+      // instead of the generic fallback.
+      toast.error(extractErrorMessage(err, 'Error submitting contract'));
     } finally {
       setSubmitting(false);
     }

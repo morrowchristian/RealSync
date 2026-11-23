@@ -10,6 +10,7 @@ import {
   type FieldConfigMap,
 } from '../../types/customField';
 import { toast } from 'react-toastify';
+import { extractErrorMessage } from '../../utils/trial';
 
 interface LeadFormProps {
   initialData?: any;
@@ -269,7 +270,9 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
       onSuccess();
     } catch (err) {
       console.error('Error submitting lead:', err);
-      toast.error('Error submitting lead');
+      // Surface the backend's plain message (e.g. a trial quota error)
+      // instead of the generic fallback.
+      toast.error(extractErrorMessage(err, 'Error submitting lead'));
     } finally {
       setSubmitting(false);
     }
