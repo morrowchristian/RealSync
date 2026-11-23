@@ -6,6 +6,8 @@ import LeadsPage from './pages/LeadsPage';
 import ArchivedLeadsPage from './pages/ArchivedLeadsPage';
 import ContractsPage from './pages/ContractsPage';
 import ArchivedContractsPage from './pages/ArchivedContractsPage';
+import EstimatesPage from './pages/EstimatesPage';
+import FollowUpsPage from './pages/FollowUpsPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -67,6 +69,22 @@ export default function App() {
           element={
             <ErrorBoundary>
               <ArchivedContractsPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="estimates"
+          element={
+            <ErrorBoundary>
+              <EstimatesPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="follow-ups"
+          element={
+            <ErrorBoundary>
+              <FollowUpsPage />
             </ErrorBoundary>
           }
         />

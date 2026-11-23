@@ -10,7 +10,7 @@ class AgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone',
-                  'brokerage', 'is_trial', 'trial_ends_at', 'days_remaining']
+                  'company', 'is_trial', 'trial_ends_at', 'days_remaining']
 
 
 class RegistrationSerializer(serializers.ModelSerializer):

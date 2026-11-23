@@ -1,4 +1,5 @@
 from django.contrib import admin
-from .models import Lead  # or Contract
+from .models import FollowUp, Lead  # or Contract
 
 admin.site.register(Lead)
+admin.site.register(FollowUp)

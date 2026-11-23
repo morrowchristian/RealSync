@@ -56,7 +56,7 @@ export const CONFIGURABLE_LEAD_FIELDS: {
   { key: 'notes', label: 'Notes' },
   { key: 'preferred_contact', label: 'Preferred Contact' },
   { key: 'phone', label: 'Phone' },
-  { key: 'property_address', label: 'Property Address' },
+  { key: 'property_address', label: 'Job Site Address' },
 ];
 
 export interface FieldConfig {

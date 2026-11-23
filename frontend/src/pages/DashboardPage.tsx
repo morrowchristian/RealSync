@@ -3,12 +3,29 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchLeads } from '../api/leads';
 import { fetchContracts } from '../api/contracts';
+import { fetchEstimates } from '../api/estimates';
+import { fetchFollowUps } from '../api/followUps';
 import Spinner from '../components/ui/Spinner';
 import type { Lead } from '../types/lead';
 import type { Contract } from '../types/contract';
+import type { Estimate } from '../types/estimate';
+import type { FollowUp } from '../types/followUp';
 
-const LEAD_STATUS_LABELS: { value: Lead['status']; label: string }[] = [
-  { value: 'new', label: 'New' },
+// Format a YYYY-MM-DD date without parsing it as a Date: `new Date`
+// treats a bare date as UTC midnight, which shifts the day back in US
+// timezones.
+function formatDueDate(value: string): string {
+  const [year, month, day] = value.split('-');
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  const monthName = months[Number(month) - 1];
+  if (!year || !monthName || !day) return value;
+  return `${monthName} ${Number(day)}, ${year}`;
+}
+
+const LEAD_STATUS_LABELS: { value: Lead['status']; label: string }[] = [  { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },
   { value: 'qualified', label: 'Qualified' },
   { value: 'converted', label: 'Converted' },
@@ -56,13 +73,24 @@ function StatCard({
 export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    Promise.all([fetchLeads(), fetchContracts()])
-      .then(([leadData, contractData]) => {
+    // Estimates / follow-ups fail soft: the dashboard must still render
+    // its stat cards if those endpoints are unavailable.
+    Promise.all([
+      fetchLeads(),
+      fetchContracts(),
+      fetchEstimates().catch(() => [] as Estimate[]),
+      fetchFollowUps().catch(() => [] as FollowUp[]),
+    ])
+      .then(([leadData, contractData, estimateData, followUpData]) => {
         setLeads(leadData);
         setContracts(contractData);
+        setEstimates(estimateData);
+        setFollowUps(followUpData);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -72,6 +100,21 @@ export default function DashboardPage() {
   const pendingContracts = contracts.filter((c) => c.status === 'pending').length;
   const signedContracts = contracts.filter((c) => c.status === 'signed').length;
   const convertedLeads = leads.filter((lead) => lead.status === 'converted').length;
+
+  // "Today": incomplete follow-ups due today or overdue (due_date is
+  // YYYY-MM-DD, so a plain string comparison against today's date works).
+  const today = new Date().toISOString().split('T')[0];
+  const dueToday = followUps
+    .filter((f) => !f.completed && f.due_date <= today)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date) || a.id - b.id);
+  // Estimates still waiting on a follow-up (sent, not yet followed up).
+  const awaitingFollowUp = estimates.filter((e) => e.status === 'sent').length;
+
+  const leadName = (leadId: number | null): string => {
+    if (leadId === null) return '—';
+    const lead = leads.find((l) => l.id === leadId);
+    return lead ? lead.full_name : `Lead #${leadId}`;
+  };
 
   const recentLeads = [...leads]
     .sort(
@@ -84,6 +127,43 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className={`text-2xl font-bold ${INK}`}>Dashboard</h1>
+
+      {/* Today: follow-ups due today or overdue, plus estimates still
+          awaiting a follow-up. */}
+      <div data-testid="dashboard-today" className={`${CARD} p-6`}>
+        <h2 className={`text-lg font-semibold ${INK} mb-4`}>Today</h2>
+        <p className={`text-sm ${INK} mb-4`}>
+          Estimates awaiting follow-up: {awaitingFollowUp}
+        </p>
+        {dueToday.length === 0 ? (
+          <p className={`text-sm ${MUTED}`}>Nothing due today.</p>
+        ) : (
+          <ul className="divide-y divide-[#EEF3F7]">
+            {dueToday.map((followUp) => (
+              <li
+                key={followUp.id}
+                className="flex justify-between items-center py-2.5 text-sm first:pt-0 last:pb-0"
+              >
+                <span>
+                  <Link
+                    to="/leads"
+                    className="font-semibold text-[#214EDF] hover:underline"
+                  >
+                    {followUp.title}
+                  </Link>
+                  <span className={`ml-2 ${MUTED}`}>
+                    {leadName(followUp.lead)}
+                  </span>
+                </span>
+                <span className={MUTED}>
+                  {followUp.due_date < today ? 'Overdue · ' : ''}
+                  {formatDueDate(followUp.due_date)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

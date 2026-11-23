@@ -1,5 +1,6 @@
 # leads/views.py
 from django.conf import settings
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -7,8 +8,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import CustomField, Lead, LeadFormSettings, merge_field_config
-from .serializers import CustomFieldSerializer, LeadFormSettingsSerializer, LeadSerializer
+from .models import CustomField, FollowUp, Lead, LeadFormSettings, merge_field_config
+from .serializers import CustomFieldSerializer, FollowUpSerializer, LeadFormSettingsSerializer, LeadSerializer
 
 
 def check_trial_quota(user, current_count, limit, message):
@@ -82,6 +83,42 @@ class CustomFieldViewSet(viewsets.ModelViewSet):
         serializer.save(agent=self.request.user)
 
 
+class FollowUpViewSet(viewsets.ModelViewSet):
+    """Lead reminders. No trial quota. Hard delete on DELETE."""
+    serializer_class = FollowUpSerializer
+
+    def get_queryset(self):
+        # Per-agent isolation: only follow-ups tied to the agent's own
+        # leads — directly, or via their estimate's lead. A follow-up
+        # with neither a lead nor an estimate attached belongs to no one,
+        # so it never appears in any agent's list.
+        user = self.request.user
+        return FollowUp.objects.filter(
+            Q(lead__agent=user) | Q(estimate__lead__agent=user)
+        ).order_by('due_date', 'id')
+
+    def _validate_ownership(self, data):
+        # On create/update, a supplied lead or estimate must belong to
+        # the logged-in agent. data.get() is None for omitted fields
+        # (e.g. a partial PATCH that does not re-assign anything).
+        lead = data.get('lead')
+        if lead is not None and lead.agent != self.request.user:
+            raise ValidationError('You can only create follow-ups for your own leads.')
+        estimate = data.get('estimate')
+        if estimate is not None and estimate.lead.agent != self.request.user:
+            raise ValidationError('You can only create follow-ups for your own estimates.')
+
+    def perform_create(self, serializer):
+        self._validate_ownership(serializer.validated_data)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        # Same ownership guard as create: a follow-up cannot be
+        # re-assigned to another agent's lead/estimate via PATCH/PUT.
+        self._validate_ownership(serializer.validated_data)
+        serializer.save()
+
+
 class LeadFormSettingsView(APIView):
     """Per-agent built-in lead-form field toggles.
 
@@ -127,9 +164,9 @@ DEMO_LEADS = [
         "phone": "(555) 214-0187",
         "property_address": "12 Maple Grove Lane, Springfield, IL 62704",
         "status": "new",
-        "company": "Maple Grove Realty",
+        "company": "",
         "lead_source": "referral",
-        "notes": "First-time buyer, pre-approved, wants a 3-bed near the park.",
+        "notes": "Kitchen remodel — needs a quote for a new sink and faucet install.",
         "preferred_contact": "email",
         "created_at": "2026-11-20T10:00:00Z",
     },
@@ -142,7 +179,7 @@ DEMO_LEADS = [
         "status": "contacted",
         "company": "",
         "lead_source": "website",
-        "notes": "Called back once; asked for a weekend showing.",
+        "notes": "AC not cooling upstairs; asked for a replacement quote this weekend.",
         "preferred_contact": "phone",
         "created_at": "2026-11-19T14:30:00Z",
     },
@@ -153,9 +190,9 @@ DEMO_LEADS = [
         "phone": "(555) 726-9034",
         "property_address": "7 Birchwood Ct, Springfield, IL 62704",
         "status": "qualified",
-        "company": "Nair Family Trust",
+        "company": "Nair Property Management",
         "lead_source": "social_media",
-        "notes": "Budget confirmed, ready to make an offer this month.",
+        "notes": "Budget confirmed for a full AC replacement across two rental units this month.",
         "preferred_contact": "either",
         "created_at": "2026-11-18T09:15:00Z",
     },
@@ -168,7 +205,7 @@ DEMO_LEADS = [
         "status": "converted",
         "company": "",
         "lead_source": "referral",
-        "notes": "Closed on the Willow Bend house — signed and funded.",
+        "notes": "Panel upgrade finished — signed off and paid in full.",
         "preferred_contact": "email",
         "created_at": "2026-11-15T11:45:00Z",
     },
@@ -179,9 +216,9 @@ DEMO_LEADS = [
         "phone": "(555) 902-1138",
         "property_address": "91 Summit Ave, Springfield, IL 62703",
         "status": "lost",
-        "company": "Rivera Properties",
+        "company": "Rivera Rentals",
         "lead_source": "advertising",
-        "notes": "Went with another agent; keep in touch for next year.",
+        "notes": "Went with another electrician; keep in touch for next year.",
         "preferred_contact": "email",
         "created_at": "2026-11-12T16:20:00Z",
     },
@@ -194,7 +231,7 @@ DEMO_LEADS = [
         "status": "new",
         "company": "",
         "lead_source": "walk_in",
-        "notes": "Walked in at the open house, interested in condos.",
+        "notes": "Met at the home show, interested in a water heater install.",
         "preferred_contact": "phone",
         "created_at": "2026-11-21T08:05:00Z",
     },

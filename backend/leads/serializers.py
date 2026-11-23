@@ -2,7 +2,7 @@ import re
 
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import CustomField, Lead, LeadFormSettings, merge_field_config
+from .models import CustomField, FollowUp, Lead, LeadFormSettings, merge_field_config
 
 PHONE_RE = re.compile(r'^\+?[\d\s()\-]{7,20}$')
 
@@ -116,3 +116,9 @@ class LeadFormSettingsSerializer(serializers.ModelSerializer):
 
     def get_field_config(self, obj):
         return merge_field_config(obj.field_config)
+
+
+class FollowUpSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FollowUp
+        fields = '__all__'

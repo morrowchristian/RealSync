@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { fetchLeads, fetchLead, archiveLead, deleteLead } from '../api/leads';
 import { fetchCustomFields } from '../api/customFields';
 import LeadForm from '../components/forms/LeadForm';
+import EstimateForm from '../components/forms/EstimateForm';
+import FollowUpForm from '../components/forms/FollowUpForm';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import ContactCard from '../components/ui/ContactCard';
@@ -114,6 +116,10 @@ export default function LeadsPage() {
   const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
   // Lead shown in the double-click contact-card modal; null = closed.
   const [cardLead, setCardLead] = useState<Lead | null>(null);
+  // Lead an estimate is being created for from the contact card, if any.
+  const [estimateLead, setEstimateLead] = useState<Lead | null>(null);
+  // Lead a follow-up is being created for from the contact card, if any.
+  const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
   // Trial accounts are capped at LEAD_LIMIT leads; null = unknown / full.
   const [isTrial, setIsTrial] = useState<boolean>(false);
   // Custom-field definitions, for labelling custom_data on the contact card.
@@ -318,7 +324,7 @@ export default function LeadsPage() {
                   <th className="px-4 py-3 font-semibold">Name</th>
                   <th className="px-4 py-3 font-semibold">Company</th>
                   <th className="px-4 py-3 font-semibold">Phone</th>
-                  <th className="px-4 py-3 font-semibold">Property Address</th>
+                  <th className="px-4 py-3 font-semibold">Job Site Address</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold">Date Created</th>
                   <th className="px-4 py-3 font-semibold">
@@ -401,6 +407,16 @@ export default function LeadsPage() {
                 setConfirmAction(null);
                 openEditModal(lead);
               }}
+              onNewEstimate={() => {
+                const lead = cardLead;
+                setCardLead(null);
+                setEstimateLead(lead);
+              }}
+              onAddFollowUp={() => {
+                const lead = cardLead;
+                setCardLead(null);
+                setFollowUpLead(lead);
+              }}
               onUpdated={() => {
                 fetchLead(cardLead.id).then((fresh) => {
                   setSelectedLead(fresh);
@@ -446,6 +462,39 @@ export default function LeadsPage() {
               </div>
             )}
           </>
+        )}
+      </Modal>
+
+      {/* New-estimate modal (from the contact card, lead prefilled) */}
+      <Modal
+        isOpen={estimateLead !== null}
+        onClose={() => setEstimateLead(null)}
+        title="New Estimate"
+      >
+        {estimateLead && (
+          <EstimateForm
+            leads={leads}
+            prefilledLeadId={estimateLead.id}
+            mode="create"
+            onCancel={() => setEstimateLead(null)}
+            onSuccess={() => setEstimateLead(null)}
+          />
+        )}
+      </Modal>
+
+      {/* Add-follow-up modal (from the contact card, lead prefilled) */}
+      <Modal
+        isOpen={followUpLead !== null}
+        onClose={() => setFollowUpLead(null)}
+        title="Add follow-up"
+      >
+        {followUpLead && (
+          <FollowUpForm
+            lead={followUpLead}
+            mode="create"
+            onCancel={() => setFollowUpLead(null)}
+            onSuccess={() => setFollowUpLead(null)}
+          />
         )}
       </Modal>
 

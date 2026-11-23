@@ -139,3 +139,24 @@ class LeadFormSettings(models.Model):
     @property
     def merged_config(self):
         return merge_field_config(self.field_config)
+
+
+class FollowUp(models.Model):
+    """A reminder tied to a lead and/or an estimate.
+
+    It lives in the leads app because it is a lead reminder. Both FKs
+    are optional: a follow-up can be standalone. The Estimate FK uses
+    a lazy 'contracts.Estimate' reference to avoid a circular import
+    (contracts.models already imports leads.models).
+    """
+
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='follow_ups', null=True, blank=True)
+    estimate = models.ForeignKey('contracts.Estimate', on_delete=models.CASCADE, related_name='follow_ups', null=True, blank=True)
+    title = models.CharField(max_length=200)
+    due_date = models.DateField()
+    completed = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Follow-up #{self.id} - {self.title}"
