@@ -2,3 +2,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Dribbble admin-panel shell: pale blue page background, near-black text. */
+body {
+  background-color: #f6fbfe;
+  color: #0b0d10;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
