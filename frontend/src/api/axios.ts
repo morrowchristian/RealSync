@@ -6,9 +6,16 @@ import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequ
 // (from the VITE_API_URL env var / .env file); Jest reads it from Node's
 // process.env. `import.meta.env` is intentionally avoided here because
 // Jest's CommonJS transform cannot parse `import.meta`.
+//
+// NOTE: Do NOT guard this with `typeof process !== 'undefined'`. Vite's
+// `define` replaces the `process.env.VITE_API_URL` token with a string
+// literal at build time, but a `typeof process` guard is NOT replaced —
+// and `process` does not exist in the browser, so the guard was always
+// false there and the app silently fell back to localhost:8000, making
+// login fail against the deployed backend. In Jest (Node) `process`
+// always exists, so the unguarded read is safe in both environments.
 const apiBaseUrl =
-  (typeof process !== 'undefined' && process.env.VITE_API_URL) ||
-  'http://localhost:8000/api/';
+  process.env.VITE_API_URL || 'http://localhost:8000/api/';
 
 const api = axios.create({
   baseURL: apiBaseUrl,
