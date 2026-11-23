@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { fetchAllLeads, restoreLead, deleteLead } from '../api/leads';
 import { toast } from 'react-toastify';
 import StatusTabs from '../components/ui/StatusTabs';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import type { Lead } from '../types/lead';
 
 export default function ArchivedLeadsPage() {
@@ -10,6 +11,8 @@ export default function ArchivedLeadsPage() {
   const [archivedLeads, setArchivedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('All');
+  // ID of the lead awaiting in-app delete confirmation, if any.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const statusOptions = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
 
@@ -28,12 +31,10 @@ export default function ArchivedLeadsPage() {
 
   // --------------------------- Actions ---------------------------
   const handleDelete = async (id: number) => {
-    const confirmDelete = confirm(`Permanently delete Lead #${id}? This cannot be undone.`);
-    if (!confirmDelete) return;
-
     try {
       await deleteLead(id);
       toast.success('Lead permanently deleted');
+      setConfirmDeleteId(null);
       fetchArchivedLeads();
     } catch {
       toast.error('Failed to delete lead');
@@ -68,6 +69,16 @@ export default function ArchivedLeadsPage() {
 
       <StatusTabs statuses={statusOptions} activeStatus={statusFilter} onSelect={setStatusFilter} />
 
+      {confirmDeleteId !== null && (
+        <ConfirmDialog
+          message={`Permanently delete Lead #${confirmDeleteId}? This cannot be undone.`}
+          confirmLabel="Yes, delete permanently"
+          variant="danger"
+          onConfirm={() => handleDelete(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+
       {filteredLeads.length === 0 ? (
         <p className="text-gray-600">No archived leads available.</p>
       ) : (
@@ -85,7 +96,7 @@ export default function ArchivedLeadsPage() {
                   ♻️ Restore
                 </button>
                 <button
-                  onClick={() => handleDelete(lead.id)}
+                  onClick={() => setConfirmDeleteId(lead.id)}
                   className="px-4 py-1 bg-red-600 text-white rounded"
                 >
                   Delete Permanently

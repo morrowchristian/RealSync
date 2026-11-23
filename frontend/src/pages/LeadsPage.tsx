@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { fetchLeads, fetchLead, deleteLead } from '../api/leads';
+import { fetchLeads, fetchLead, archiveLead, deleteLead } from '../api/leads';
 import LeadForm from '../components/forms/LeadForm';
 import Modal from '../components/ui/Modal';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { toast } from 'react-toastify';
-import api from '../api/axios';
 import StatusTabs from '../components/ui/StatusTabs';
 import EmptyState from '../components/ui/EmptyState';
 import type { Lead } from '../types/lead';
@@ -17,6 +17,8 @@ export default function LeadsPage() {
   const [isModalOpen, setModalOpen] = useState<boolean>(false);
   const [editMode, setEditMode] = useState<boolean>(false);
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  // Which destructive action is awaiting in-app confirmation, if any.
+  const [confirmAction, setConfirmAction] = useState<'archive' | 'delete' | null>(null);
 
   const statusOptions: string[] = ['All', 'New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
 
@@ -43,15 +45,19 @@ export default function LeadsPage() {
     fetchLead(id).then(setSelectedLead);
   };
 
+  const closeModal = (): void => {
+    setModalOpen(false);
+    setConfirmAction(null);
+  };
+
   const handleArchive = async (): Promise<void> => {
     if (!selectedLead) return;
-    const confirmArchive = window.confirm(`Archive Lead #${selectedLead.id}?`);
-    if (!confirmArchive) return;
     try {
-      await api.post(`/leads/${selectedLead.id}/archive/`);
+      await archiveLead(selectedLead.id);
       toast.success('Lead archived');
       setModalOpen(false);
       setEditMode(false);
+      setConfirmAction(null);
       setSelectedLead(null);
       refetchLeads();
     } catch (error: unknown) {
@@ -62,13 +68,12 @@ export default function LeadsPage() {
 
   const handleDelete = async (): Promise<void> => {
     if (!selectedLead) return;
-    const confirmDelete = window.confirm(`Permanently delete Lead #${selectedLead.id}?`);
-    if (!confirmDelete) return;
     try {
       await deleteLead(selectedLead.id);
       toast.success('Lead deleted');
       setModalOpen(false);
       setEditMode(false);
+      setConfirmAction(null);
       setSelectedLead(null);
       refetchLeads();
     } catch (error: unknown) {
@@ -168,15 +173,21 @@ export default function LeadsPage() {
       {/* Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         title={editMode ? 'Edit Lead' : 'New Lead'}
       >
         <LeadForm
           initialData={editMode ? selectedLead : undefined}
           mode={editMode ? 'edit' : 'create'}
           onSuccess={() => {
+            // Refresh the selected lead so the detail panel and the next
+            // Edit prefill show the updated values (not the stale object).
+            if (editMode && selectedLead) {
+              fetchLead(selectedLead.id).then(setSelectedLead);
+            }
             setModalOpen(false);
             setEditMode(false);
+            setConfirmAction(null);
             refetchLeads();
           }}
         />
@@ -184,17 +195,40 @@ export default function LeadsPage() {
         {editMode && selectedLead && (
           <>
             <button
-              onClick={handleArchive}
+              onClick={() => setConfirmAction('archive')}
               className="mt-4 px-4 py-2 bg-orange-500 text-white rounded"
             >
               🗃️ Archive Lead
             </button>
             <button
-              onClick={handleDelete}
+              onClick={() => setConfirmAction('delete')}
               className="mt-2 px-4 py-2 bg-red-600 text-white rounded"
             >
               ❌ Delete Lead
             </button>
+
+            {confirmAction === 'archive' && (
+              <div className="mt-4">
+                <ConfirmDialog
+                  message={`Archive Lead #${selectedLead.id}? The lead will move to Archived Leads and can be restored later.`}
+                  confirmLabel="Yes, archive"
+                  variant="warn"
+                  onConfirm={handleArchive}
+                  onCancel={() => setConfirmAction(null)}
+                />
+              </div>
+            )}
+            {confirmAction === 'delete' && (
+              <div className="mt-4">
+                <ConfirmDialog
+                  message={`Permanently delete Lead #${selectedLead.id}? This cannot be undone.`}
+                  confirmLabel="Yes, delete"
+                  variant="danger"
+                  onConfirm={handleDelete}
+                  onCancel={() => setConfirmAction(null)}
+                />
+              </div>
+            )}
           </>
         )}
       </Modal>

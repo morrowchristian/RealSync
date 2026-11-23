@@ -3,12 +3,15 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { restoreContract, fetchAllContracts, deleteContract } from '../api/contracts';
 import StatusTabs from '../components/ui/StatusTabs';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import type { Contract } from '../types/contract';
 
 export default function ArchivedContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('All');
+  // ID of the contract awaiting in-app delete confirmation, if any.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const statusOptions = ['All', 'Pending', 'Signed', 'Voided'];
 
@@ -40,12 +43,10 @@ export default function ArchivedContractsPage() {
       return;
     }
 
-    const confirmDelete = confirm(`Permanently delete Contract #${contract.id}?`);
-    if (!confirmDelete) return;
-
     try {
       await deleteContract(contract.id);
       toast.success('Contract permanently deleted');
+      setConfirmDeleteId(null);
       fetchArchivedContracts();
     } catch {
       toast.error('Failed to delete contract');
@@ -67,6 +68,20 @@ export default function ArchivedContractsPage() {
       <h1 className="text-2xl font-bold">Archived Contracts</h1>
 
       <StatusTabs statuses={statusOptions} activeStatus={statusFilter} onSelect={setStatusFilter} />
+
+      {confirmDeleteId !== null && (
+        <ConfirmDialog
+          message={`Permanently delete Contract #${confirmDeleteId}? This cannot be undone.`}
+          confirmLabel="Yes, delete permanently"
+          variant="danger"
+          onConfirm={() => {
+            const contract = contracts.find((c) => c.id === confirmDeleteId);
+            if (contract) handleDelete(contract);
+            setConfirmDeleteId(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-gray-600">No archived contracts available.</p>
@@ -92,7 +107,7 @@ export default function ArchivedContractsPage() {
                   ♻️ Restore
                 </button>
                 <button
-                  onClick={() => handleDelete(contract)}
+                  onClick={() => setConfirmDeleteId(contract.id)}
                   className="px-4 py-1 bg-red-600 text-white rounded"
                 >
                   Delete Permanently

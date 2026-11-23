@@ -101,8 +101,8 @@ export default function LeadForm({ initialData, mode, onSuccess }: LeadFormProps
         <option value="new">New</option>
         <option value="contacted">Contacted</option>
         <option value="qualified">Qualified</option>
-        <option value="lost">Lost</option>
         <option value="converted">Converted</option>
+        <option value="lost">Lost</option>
       </select>
 
       <button
