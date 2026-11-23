@@ -8,4 +8,9 @@ export interface Lead {
   agent: number;
   created_at: string;
   is_archived: boolean;
+  company?: string;
+  lead_source?: string;
+  notes?: string;
+  preferred_contact?: string;
+  custom_data?: Record<string, any>;
 }

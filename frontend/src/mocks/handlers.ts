@@ -222,4 +222,80 @@ export const handlers = [
     }
     return res(ctx.status(401), ctx.json({ detail: 'Token is invalid or expired' }));
   }),
+
+  // 🧩 Custom Fields Endpoints
+  rest.get('http://localhost:8000/api/custom-fields/', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json([]));
+  }),
+
+  rest.post('http://localhost:8000/api/custom-fields/', async (req, res, ctx) => {
+    const body = await req.json();
+    return res(
+      ctx.status(201),
+      ctx.json({
+        id: 1,
+        agent: 1,
+        name: body.name ?? body.label.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+        label: body.label,
+        field_type: body.field_type ?? 'text',
+        required: body.required ?? false,
+        options: body.options ?? [],
+        order: body.order ?? 0,
+        is_active: true,
+      })
+    );
+  }),
+
+  rest.patch('http://localhost:8000/api/custom-fields/:id/', async (req, res, ctx) => {
+    const body = await req.json();
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: Number(req.params.id),
+        agent: 1,
+        name: body.name ?? 'field',
+        label: body.label ?? 'Field',
+        field_type: body.field_type ?? 'text',
+        required: body.required ?? false,
+        options: body.options ?? [],
+        order: body.order ?? 0,
+        is_active: true,
+      })
+    );
+  }),
+
+  rest.delete('http://localhost:8000/api/custom-fields/:id/', (req, res, ctx) => {
+    return res(ctx.status(204));
+  }),
+
+  // ⚙️ Lead Form Settings Endpoints
+  rest.get('http://localhost:8000/api/lead-form-settings/', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        field_config: {
+          company: { visible: true, required: false },
+          lead_source: { visible: true, required: false },
+          notes: { visible: true, required: false },
+          preferred_contact: { visible: true, required: false },
+          phone: { visible: true, required: false },
+          property_address: { visible: true, required: true },
+        },
+      })
+    );
+  }),
+
+  rest.put('http://localhost:8000/api/lead-form-settings/', async (req, res, ctx) => {
+    const body = await req.json();
+    const defaults: Record<string, { visible: boolean; required: boolean }> = {
+      company: { visible: true, required: false },
+      lead_source: { visible: true, required: false },
+      notes: { visible: true, required: false },
+      preferred_contact: { visible: true, required: false },
+      phone: { visible: true, required: false },
+      property_address: { visible: true, required: true },
+    };
+    const merged = { ...defaults, ...(body.field_config ?? {}) };
+    return res(ctx.status(200), ctx.json({ field_config: merged }));
+  }),
 ];
