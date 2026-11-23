@@ -4,6 +4,7 @@ import LeadsPage from '../../pages/LeadsPage';
 import { renderWithProviders } from '../test-utils';
 import { server } from '../../mocks/server';
 import { rest } from 'msw';
+import { toast } from 'react-toastify';
 
 jest.mock('react-toastify', () => ({
   toast: {
@@ -36,7 +37,7 @@ test('renders LeadsPage with "Leads" heading and total count', async () => {
   expect(await screen.findByText('Total 2')).toBeInTheDocument();
 });
 
-test('clicking a lead opens the contact card with all fields', async () => {
+test('single-click selects a lead without opening the contact card; double-click opens the modal card', async () => {
   server.use(
     rest.get('http://localhost:8000/api/leads/1/', (req, res, ctx) => {
       return res(ctx.status(200), ctx.json(fullLead));
@@ -44,9 +45,19 @@ test('clicking a lead opens the contact card with all fields', async () => {
   );
   renderWithProviders(<LeadsPage />);
   await screen.findByText('John Doe');
-  fireEvent.click(screen.getByText('John Doe'));
 
+  // Single-click selects/highlights the row only — no contact card, no modal.
+  fireEvent.click(screen.getByText('John Doe'));
+  await waitFor(() => {
+    expect(screen.getByTestId('lead-row-1')).toHaveClass('bg-blue-50');
+  });
+  expect(screen.queryByTestId('contact-card')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('modal-dialog')).not.toBeInTheDocument();
+
+  // Double-click opens the contact card in a modal, with all fields.
+  fireEvent.doubleClick(screen.getByText('John Doe'));
   expect(await screen.findByTestId('contact-card')).toBeInTheDocument();
+  expect(screen.getByTestId('modal-dialog')).toBeInTheDocument();
   expect(screen.getByText('Acme Corp')).toBeInTheDocument();
   expect(screen.getByText('Website')).toBeInTheDocument();
   expect(screen.getByText('Interested in a quote.')).toBeInTheDocument();
@@ -56,10 +67,17 @@ test('clicking a lead opens the contact card with all fields', async () => {
   );
 });
 
-test('sheet view kebab menu offers Edit / Archive / Delete', async () => {
+test('spreadsheet view kebab menu offers Edit / Archive / Delete', async () => {
   renderWithProviders(<LeadsPage />);
   await screen.findByText('John Doe');
-  fireEvent.click(screen.getByRole('button', { name: 'Sheet' }));
+
+  // The table is the only view — there is no Cards/Sheet toggle.
+  expect(screen.queryByRole('button', { name: 'Cards' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Sheet' })).not.toBeInTheDocument();
+  // ID and Company columns are present in the spreadsheet.
+  expect(screen.getByRole('columnheader', { name: 'ID' })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Company' })).toBeInTheDocument();
+
   fireEvent.click(screen.getByTestId('lead-kebab-1'));
 
   expect(screen.getByTestId('lead-menu-1')).toBeInTheDocument();
@@ -71,6 +89,79 @@ test('sheet view kebab menu offers Edit / Archive / Delete', async () => {
   fireEvent.click(screen.getByTestId('lead-menu-edit-1'));
   expect(await screen.findByText('Edit Lead')).toBeInTheDocument();
   expect(screen.getByTestId('lead-full_name')).toHaveValue('John Doe');
+});
+
+test('shows a hint that double-clicking a row opens the contact card', async () => {
+  renderWithProviders(<LeadsPage />);
+  await screen.findByText('John Doe');
+  expect(
+    screen.getByText('Double-click a row to open the contact card.')
+  ).toBeInTheDocument();
+});
+
+test('contact card modal Archive and Delete buttons trigger the confirm flow', async () => {
+  (toast.success as jest.Mock).mockClear();
+  server.use(
+    rest.get('http://localhost:8000/api/leads/1/', (req, res, ctx) => {
+      return res(ctx.status(200), ctx.json(fullLead));
+    })
+  );
+  renderWithProviders(<LeadsPage />);
+  await screen.findByText('John Doe');
+  fireEvent.doubleClick(screen.getByText('John Doe'));
+  await screen.findByTestId('contact-card');
+
+  // Both buttons render in the card modal.
+  const modal = screen.getByTestId('modal-dialog');
+  expect(within(modal).getByRole('button', { name: /Archive Lead/ })).toBeInTheDocument();
+  expect(within(modal).getByRole('button', { name: /Delete Lead/ })).toBeInTheDocument();
+
+  // Archive opens the confirm dialog; cancelling leaves the card modal open.
+  fireEvent.click(within(modal).getByRole('button', { name: /Archive Lead/ }));
+  expect(await screen.findByText(/Archive Lead #1\?/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  await waitFor(() => {
+    expect(screen.queryByText(/Archive Lead #1\?/)).not.toBeInTheDocument();
+  });
+  expect(screen.getByTestId('contact-card')).toBeInTheDocument();
+
+  // Delete opens the confirm dialog; confirming deletes, toasts, closes
+  // the modal, and the lead is gone from the list.
+  // After the delete, the refetch returns a list without the deleted lead.
+  server.use(
+    rest.get('http://localhost:8000/api/leads/', (req, res, ctx) => {
+      return res(
+        ctx.status(200),
+        ctx.json([
+          {
+            id: 2,
+            full_name: 'Jane Smith',
+            email: 'jane@example.com',
+            phone: '456',
+            property_address: '456 Lane',
+            status: 'contacted',
+            agent: 1,
+            created_at: '2024-01-02',
+            is_archived: false,
+          },
+        ])
+      );
+    })
+  );
+  fireEvent.click(
+    within(screen.getByTestId('modal-dialog')).getByRole('button', { name: /Delete Lead/ })
+  );
+  expect(await screen.findByText(/Permanently delete Lead #1\?/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Yes, delete' }));
+
+  await waitFor(() => {
+    expect(screen.queryByTestId('modal-dialog')).not.toBeInTheDocument();
+  });
+  expect(toast.success).toHaveBeenCalledWith('Lead deleted');
+  await waitFor(() => {
+    expect(screen.queryByText('John Doe')).not.toBeInTheDocument();
+  });
+  expect(screen.getByText('Jane Smith')).toBeInTheDocument();
 });
 
 test('New Lead modal keeps Create Lead and Cancel in the fixed footer', async () => {
