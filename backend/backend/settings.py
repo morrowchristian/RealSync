@@ -13,6 +13,7 @@ from pathlib import Path
 from datetime import timedelta
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # -----------------------------------------------------------
 # Base Directory
@@ -130,6 +131,13 @@ TEMPLATES = [
 
 # Postgres when DATABASE_URL is set (production), otherwise the local
 # SQLite database. No credentials are hardcoded here.
+# Fail fast in production: without DATABASE_URL the app would silently
+# run on an ephemeral SQLite file that resets on every deploy.
+if not DEBUG and not os.environ.get('DATABASE_URL'):
+    raise ImproperlyConfigured(
+        'DATABASE_URL must be set when DEBUG is False. '
+        'Set it to the Neon connection string in the Render dashboard.'
+    )
 if os.environ.get('DATABASE_URL'):
     DATABASES = {
         'default': dj_database_url.parse(
