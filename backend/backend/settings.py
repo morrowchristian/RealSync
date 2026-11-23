@@ -43,7 +43,7 @@ ALLOWED_HOSTS = [
     for host in os.environ.get('ALLOWED_HOSTS', '').split(',')
     if host.strip()
 ]
-for _host in ('127.0.0.1', 'localhost', '.githubpreview.dev', '.app.github.dev'):
+for _host in ('127.0.0.1', 'localhost', '.githubpreview.dev', '.app.github.dev', '.onrender.com'):
     if _host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_host)
 
