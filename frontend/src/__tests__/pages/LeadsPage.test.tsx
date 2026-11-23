@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import LeadsPage from '../../pages/LeadsPage';
 import { renderWithProviders } from '../test-utils';
 
-test('renders LeadsPage with "All Leads"', () => {
+test('renders LeadsPage with "All Leads"', async () => {
   renderWithProviders(<LeadsPage />);
-  expect(screen.getByText(/All Leads/i)).toBeInTheDocument();
+  expect(await screen.findByText(/All Leads/i)).toBeInTheDocument();
 });

@@ -5,13 +5,13 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
-      const response = await api.post('token/', { email, password });
+      const response = await api.post('token/', { username, password });
       localStorage.setItem('access', response.data.access);
       localStorage.setItem('refresh', response.data.refresh);
       toast.success('Login successful');
@@ -25,11 +25,11 @@ export default function LoginPage() {
     <div className="max-w-md mx-auto mt-20 space-y-4">
       <h1 className="text-2xl font-bold">Login</h1>
       <input
-        type="email"
-        placeholder="Email"
+        type="text"
+        placeholder="Username"
         className="w-full p-2 border rounded"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
       />
       <input
         type="password"

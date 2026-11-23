@@ -1,8 +1,8 @@
 // frontend/src/__tests__/setupTests.ts
-import { TextEncoder } from 'util';
+// TextEncoder/TextDecoder are set in polyfills.ts (loaded via jest `setupFiles`,
+// which runs before this file) because undici references TextEncoder at import time.
 import { fetch, Response, Request, Headers } from 'undici';
 
-global.TextEncoder = TextEncoder;
 global.fetch = fetch as any;
 global.Response = Response as any;
 global.Request = Request as any;

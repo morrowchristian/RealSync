@@ -4,6 +4,7 @@ import AppLayout from './layouts/AppLayout';
 import LeadsPage from './pages/LeadsPage';
 import ArchivedLeadsPage from './pages/ArchivedLeadsPage';
 import ContractsPage from './pages/ContractsPage';
+import ArchivedContractsPage from './pages/ArchivedContractsPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import ErrorBoundary from './components/ui/ErrorBoundary';
@@ -45,6 +46,14 @@ export default function App() {
           element={
             <ErrorBoundary>
               <ContractsPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="contracts/archived"
+          element={
+            <ErrorBoundary>
+              <ArchivedContractsPage />
             </ErrorBoundary>
           }
         />

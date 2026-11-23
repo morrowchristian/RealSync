@@ -1,6 +1,7 @@
 # backend/contracts/tests/test_permissions.py
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 from users.models import Agent
 from leads.models import Lead
 from contracts.models import Contract
@@ -8,7 +9,10 @@ from contracts.models import Contract
 class ContractPermissionTest(APITestCase):
     def setUp(self):
         self.agent = Agent.objects.create_user(username="permtest", password="testpass")
-        self.client.login(username="permtest", password="testpass")
+        # API requires JWT auth (session login does not authenticate
+        # JWT-only endpoints): authenticate the test client with a token.
+        refresh = RefreshToken.for_user(self.agent)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
         self.lead = Lead.objects.create(
             full_name="Test Lead",
             email="test@lead.com",
