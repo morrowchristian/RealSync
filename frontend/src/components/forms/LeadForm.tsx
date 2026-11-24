@@ -185,7 +185,7 @@ function validateField(
       if (!fieldConfig.property_address.required) return null;
       return values.property_address.trim()
         ? null
-        : 'Property address is required';
+        : 'Job site address is required';
     default: {
       if (name.startsWith('custom:')) {
         const fieldName = name.slice('custom:'.length);
@@ -655,14 +655,14 @@ export default function LeadForm({ initialData, mode, onSuccess, onCancel }: Lea
               htmlFor="lead-property_address"
               className={labelClass}
             >
-              Property Address{fieldConfig.property_address.required ? ' *' : ''}
+              Job Site Address{fieldConfig.property_address.required ? ' *' : ''}
             </label>
             <input
               type="text"
               id="lead-property_address"
               name="property_address"
               data-testid="lead-property_address"
-              placeholder="Property Address"
+              placeholder="Job Site Address"
               value={formData.property_address}
               onChange={handleChange}
               className={inputClass(Boolean(errors.property_address))}

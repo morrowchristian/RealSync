@@ -5,8 +5,8 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from leads.views import CustomFieldViewSet, DemoView, LeadFormSettingsView, LeadViewSet, ping
-from contracts.views import ContractViewSet
+from leads.views import CustomFieldViewSet, DemoView, FollowUpViewSet, LeadFormSettingsView, LeadViewSet, ping
+from contracts.views import ContractViewSet, EstimateViewSet
 from users.views import (
     AgentViewSet,
     CleanupExpiredTrialsView,
@@ -19,7 +19,9 @@ from rest_framework_simplejwt.views import TokenRefreshView
 router = DefaultRouter()
 router.register(r'leads', LeadViewSet, basename='lead')
 router.register(r'custom-fields', CustomFieldViewSet, basename='custom-field')
+router.register(r'follow-ups', FollowUpViewSet, basename='follow-up')
 router.register(r'contracts', ContractViewSet, basename='contract')
+router.register(r'estimates', EstimateViewSet, basename='estimate')
 router.register(r'agents', AgentViewSet, basename='agent')
 
 # URL patterns

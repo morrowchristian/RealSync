@@ -18,7 +18,7 @@ const trialAgent = {
   first_name: 'Trial',
   last_name: 'User',
   phone: '',
-  brokerage: '',
+  company: '',
   is_trial: true,
   trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
   days_remaining: 3,

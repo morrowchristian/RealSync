@@ -125,7 +125,7 @@ export default function DemoPage() {
                 <th className="px-4 py-2 font-semibold">Name</th>
                 <th className="px-4 py-2 font-semibold">Email</th>
                 <th className="px-4 py-2 font-semibold">Phone</th>
-                <th className="px-4 py-2 font-semibold">Property Address</th>
+                <th className="px-4 py-2 font-semibold">Job Site Address</th>
                 <th className="px-4 py-2 font-semibold">Status</th>
               </tr>
             </thead>

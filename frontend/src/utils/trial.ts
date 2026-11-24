@@ -6,6 +6,7 @@
 // Trial-account quotas.
 export const LEAD_LIMIT = 50;
 export const CONTRACT_LIMIT = 20;
+export const ESTIMATE_LIMIT = 20;
 export const CUSTOM_FIELD_LIMIT = 10;
 
 export interface TrialInfo {

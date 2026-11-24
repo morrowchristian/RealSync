@@ -8,7 +8,7 @@ from django.utils import timezone
 
 class Agent(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
-    brokerage = models.CharField(max_length=100, blank=True)
+    company = models.CharField(max_length=100, blank=True)
     # True only for accounts created via public signup (/api/register/).
     # The owner account (created by createsuperuser / ensure_superuser)
     # has this False and is never quota-limited or auto-deleted.

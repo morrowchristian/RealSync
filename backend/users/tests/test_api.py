@@ -25,3 +25,13 @@ class AgentAPITests(APITestCase):
         }
         response = self.client.post("/api/agents/", data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_agent_profile_exposes_company_not_brokerage(self):
+        # Agent.brokerage was renamed to Agent.company (home-services
+        # re-skin); the API field is now `company`.
+        self.agent.company = "Summit Plumbing & HVAC"
+        self.agent.save()
+        response = self.client.get(f"/api/agents/{self.agent.id}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["company"], "Summit Plumbing & HVAC")
+        self.assertNotIn("brokerage", response.data)

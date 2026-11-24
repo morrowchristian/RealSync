@@ -240,6 +240,7 @@ else:
 TRIAL_DAYS = 5
 TRIAL_LEAD_LIMIT = 50
 TRIAL_CONTRACT_LIMIT = 20
+TRIAL_ESTIMATE_LIMIT = 20
 TRIAL_CUSTOM_FIELD_LIMIT = 10
 
 # -----------------------------------------------------------

@@ -219,7 +219,7 @@ describe('LeadForm', () => {
     expect(screen.getByLabelText(/Email/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Phone/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Company/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Property Address/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Job Site Address/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Lead Source/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Preferred Contact/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Status/)).toBeInTheDocument();
@@ -234,7 +234,7 @@ describe('LeadForm', () => {
     await waitFor(() => {
       expect(screen.getByText('Full name is required')).toBeInTheDocument();
       expect(screen.getByText('Email is required')).toBeInTheDocument();
-      expect(screen.getByText('Property address is required')).toBeInTheDocument();
+      expect(screen.getByText('Job site address is required')).toBeInTheDocument();
     });
     expect(mockSuccess).not.toHaveBeenCalled();
   });

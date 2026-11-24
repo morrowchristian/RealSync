@@ -28,7 +28,7 @@ export interface AgentProfile {
   first_name: string;
   last_name: string;
   phone: string;
-  brokerage: string;
+  company: string;
   // Trial fields (present on the Agent detail response).
   is_trial?: boolean;
   trial_ends_at?: string | null;

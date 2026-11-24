@@ -24,6 +24,10 @@ interface ContactCardProps {
   onEdit: () => void;
   /** Called after a successful inline edit so the parent can refresh. */
   onUpdated?: () => void;
+  /** Open the new-estimate form for this lead, when provided. */
+  onNewEstimate?: () => void;
+  /** Open the add-follow-up form for this lead, when provided. */
+  onAddFollowUp?: () => void;
 }
 
 function formatDate(value?: string | null): string {
@@ -65,6 +69,8 @@ export default function ContactCard({
   onBack,
   onEdit,
   onUpdated,
+  onNewEstimate,
+  onAddFollowUp,
 }: ContactCardProps) {
   const [editing, setEditing] = useState(false);
 
@@ -95,6 +101,29 @@ export default function ContactCard({
         >
           Toggle Inline Edit
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 px-5 pb-4">
+        {onNewEstimate && (
+          <button
+            type="button"
+            onClick={onNewEstimate}
+            data-testid="contact-card-new-estimate"
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700"
+          >
+            + New Estimate
+          </button>
+        )}
+        {onAddFollowUp && (
+          <button
+            type="button"
+            onClick={onAddFollowUp}
+            data-testid="contact-card-add-follow-up"
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-full hover:bg-green-700"
+          >
+            Add follow-up
+          </button>
+        )}
       </div>
 
       <h2 className="px-5 pb-2 text-xl font-bold text-gray-900">
@@ -149,7 +178,7 @@ export default function ContactCard({
           <Row label="Preferred Contact">
             {preferredContactLabel(lead.preferred_contact)}
           </Row>
-          <Row label="Property Address">
+          <Row label="Job Site Address">
             {lead.property_address || '—'}
           </Row>
           <Row label="Notes">{lead.notes || '—'}</Row>

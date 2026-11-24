@@ -134,7 +134,7 @@ export default function SettingsPage() {
         { label: 'First name', value: profile.first_name },
         { label: 'Last name', value: profile.last_name },
         { label: 'Phone', value: profile.phone },
-        { label: 'Brokerage', value: profile.brokerage },
+        { label: 'Company', value: profile.company },
       ]
     : [];
 

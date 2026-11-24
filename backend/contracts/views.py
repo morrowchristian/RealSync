@@ -6,8 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from leads.views import check_trial_quota
-from .models import Contract
-from .serializers import ContractSerializer
+from .models import Contract, Estimate
+from .serializers import ContractSerializer, EstimateSerializer
 
 class ContractViewSet(viewsets.ModelViewSet):
     serializer_class = ContractSerializer
@@ -63,3 +63,35 @@ class ContractViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Signed contracts cannot be deleted.'}, status=403)
         self.perform_destroy(contract)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EstimateViewSet(viewsets.ModelViewSet):
+    """Quotes sent to leads — the precursor to a Contract. No Contract
+    is auto-created when an estimate is won. Hard delete on DELETE."""
+    serializer_class = EstimateSerializer
+
+    def get_queryset(self):
+        # Per-agent isolation: an agent only ever sees estimates on
+        # their own leads.
+        return Estimate.objects.filter(lead__agent=self.request.user)
+
+    def perform_create(self, serializer):
+        lead = serializer.validated_data['lead']
+        if lead.agent != self.request.user:
+            raise ValidationError('You can only create estimates for your own leads.')
+        check_trial_quota(
+            self.request.user,
+            Estimate.objects.filter(lead__agent=self.request.user).count(),
+            settings.TRIAL_ESTIMATE_LIMIT,
+            f"You've reached the {settings.TRIAL_ESTIMATE_LIMIT} estimate limit "
+            "for a trial account",
+        )
+        serializer.save()
+
+    def perform_update(self, serializer):
+        # Same ownership guard as create: an estimate cannot be
+        # re-assigned to another agent's lead via PATCH/PUT.
+        lead = serializer.validated_data.get('lead')
+        if lead is not None and lead.agent != self.request.user:
+            raise ValidationError('You can only assign estimates to your own leads.')
+        serializer.save()

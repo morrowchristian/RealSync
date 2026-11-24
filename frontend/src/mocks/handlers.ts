@@ -196,6 +196,217 @@ export const handlers = [
     return res(ctx.status(200), ctx.json({ id: Number(req.params.id), is_archived: false }));
   }),
 
+  // 🔗 Estimates Endpoints
+  // Seed due/sent dates are relative to today so Dashboard "Today"
+  // tests stay valid whenever they run.
+  rest.get('http://localhost:8000/api/estimates/', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json([
+        {
+          id: 1,
+          lead: 1,
+          title: 'Kitchen remodel quote',
+          description: 'Full kitchen remodel estimate',
+          amount: '4500.00',
+          status: 'sent',
+          date_sent: '2024-01-05',
+          notes: '',
+          created_at: '2024-01-05',
+        },
+        {
+          id: 2,
+          lead: 2,
+          title: 'Bathroom refresh',
+          description: 'Bathroom refresh estimate',
+          amount: '1200.00',
+          status: 'won',
+          date_sent: '2024-01-06',
+          notes: '',
+          created_at: '2024-01-06',
+        },
+      ])
+    );
+  }),
+
+  rest.get('http://localhost:8000/api/estimates/:id/', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: Number(req.params.id),
+        lead: 1,
+        title: 'Kitchen remodel quote',
+        description: 'Full kitchen remodel estimate',
+        amount: '4500.00',
+        status: 'sent',
+        date_sent: '2024-01-05',
+        notes: '',
+        created_at: '2024-01-05',
+      })
+    );
+  }),
+
+  rest.post('http://localhost:8000/api/estimates/', async (req, res, ctx) => {
+    const body = await req.json();
+    if (!body.title) {
+      return res(ctx.status(400), ctx.json({ detail: 'Title is required.' }));
+    }
+    return res(
+      ctx.status(201),
+      ctx.json({
+        id: 3,
+        lead: body.lead ?? 1,
+        title: body.title,
+        description: body.description ?? '',
+        amount: body.amount ?? null,
+        status: body.status ?? 'sent',
+        date_sent: body.date_sent ?? null,
+        notes: body.notes ?? '',
+        created_at: new Date().toISOString().split('T')[0],
+      })
+    );
+  }),
+
+  rest.put('http://localhost:8000/api/estimates/:id/', async (req, res, ctx) => {
+    const body = await req.json();
+    if (!body.title) {
+      return res(ctx.status(400), ctx.json({ detail: 'Title is required.' }));
+    }
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: Number(req.params.id),
+        lead: body.lead ?? 1,
+        title: body.title,
+        description: body.description ?? '',
+        amount: body.amount ?? null,
+        status: body.status ?? 'sent',
+        date_sent: body.date_sent ?? null,
+        notes: body.notes ?? '',
+        created_at: body.created_at ?? '2024-01-05',
+      })
+    );
+  }),
+
+  rest.delete('http://localhost:8000/api/estimates/:id/', (req, res, ctx) => {
+    return res(ctx.status(204));
+  }),
+
+  // 🔗 Follow-ups Endpoints
+  rest.get('http://localhost:8000/api/follow-ups/', (req, res, ctx) => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().split('T')[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    return res(
+      ctx.status(200),
+      ctx.json([
+        {
+          id: 1,
+          lead: 1,
+          estimate: 1,
+          title: 'Call John about kitchen quote',
+          due_date: iso(today),
+          completed: false,
+          notes: '',
+          created_at: '2024-01-05',
+        },
+        {
+          id: 2,
+          lead: 2,
+          estimate: null,
+          title: 'Email Jane the service agreement',
+          due_date: iso(yesterday),
+          completed: false,
+          notes: '',
+          created_at: '2024-01-05',
+        },
+        {
+          id: 3,
+          lead: 1,
+          estimate: null,
+          title: 'Send invoice to John',
+          due_date: iso(tomorrow),
+          completed: false,
+          notes: '',
+          created_at: '2024-01-05',
+        },
+        {
+          id: 4,
+          lead: 2,
+          estimate: null,
+          title: 'Already done follow-up',
+          due_date: iso(yesterday),
+          completed: true,
+          notes: '',
+          created_at: '2024-01-05',
+        },
+      ])
+    );
+  }),
+
+  rest.get('http://localhost:8000/api/follow-ups/:id/', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: Number(req.params.id),
+        lead: 1,
+        estimate: 1,
+        title: 'Call John about kitchen quote',
+        due_date: new Date().toISOString().split('T')[0],
+        completed: false,
+        notes: '',
+        created_at: '2024-01-05',
+      })
+    );
+  }),
+
+  rest.post('http://localhost:8000/api/follow-ups/', async (req, res, ctx) => {
+    const body = await req.json();
+    if (!body.title || !body.due_date) {
+      return res(
+        ctx.status(400),
+        ctx.json({ detail: 'Missing required fields: title, due_date' })
+      );
+    }
+    return res(
+      ctx.status(201),
+      ctx.json({
+        id: 5,
+        lead: body.lead ?? null,
+        estimate: body.estimate ?? null,
+        title: body.title,
+        due_date: body.due_date,
+        completed: false,
+        notes: body.notes ?? '',
+        created_at: new Date().toISOString().split('T')[0],
+      })
+    );
+  }),
+
+  rest.patch('http://localhost:8000/api/follow-ups/:id/', async (req, res, ctx) => {
+    const body = await req.json();
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: Number(req.params.id),
+        lead: body.lead ?? 1,
+        estimate: body.estimate ?? null,
+        title: body.title ?? 'Call John about kitchen quote',
+        due_date: body.due_date ?? new Date().toISOString().split('T')[0],
+        completed: body.completed ?? false,
+        notes: body.notes ?? '',
+        created_at: '2024-01-05',
+      })
+    );
+  }),
+
+  rest.delete('http://localhost:8000/api/follow-ups/:id/', (req, res, ctx) => {
+    return res(ctx.status(204));
+  }),
+
   // 🔐 Auth (Token) Endpoint
   rest.post('http://localhost:8000/api/token/', async (req, res, ctx) => {
     const body = await req.json();
@@ -410,7 +621,7 @@ export const handlers = [
         first_name: 'Test',
         last_name: 'User',
         phone: '',
-        brokerage: '',
+        company: '',
         is_trial: false,
         trial_ends_at: null,
         days_remaining: null,
