@@ -16,6 +16,7 @@ import {
   getLeadFormSettings,
   updateLeadFormSettings,
 } from '../api/leadFormSettings';
+import { withRetry } from '../utils/retry';
 import {
   CONFIGURABLE_LEAD_FIELDS,
   DEFAULT_FIELD_CONFIG,
@@ -42,6 +43,12 @@ export default function SettingsPage() {
   const [fieldConfig, setFieldConfig] =
     useState<FieldConfigMap>(DEFAULT_FIELD_CONFIG);
   const [savingConfig, setSavingConfig] = useState(false);
+  // False until the settings fetch resolves (or exhausts its retries).
+  // The toggles and Save stay disabled before then: showing the defaults
+  // first would let a slow fetch overwrite the user's edits, and saving
+  // before the real settings load would overwrite the saved config with
+  // the defaults.
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   const refreshCustomFields = async () => {
     try {
@@ -55,12 +62,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     refreshCustomFields();
-    getLeadFormSettings()
+    // Retried (silent): a single transient failure — e.g. the free
+    // backend waking from sleep — used to leave the page showing the
+    // default toggles instead of the saved settings, and saving from
+    // that state would overwrite the real settings with the defaults.
+    withRetry(() => getLeadFormSettings({ silent: true }), 3, 1000)
       .then((settings) =>
         setFieldConfig(mergeFieldConfig(settings?.field_config))
       )
       // Fall back to the defaults if the fetch fails; the form still works.
-      .catch(() => setFieldConfig(DEFAULT_FIELD_CONFIG));
+      .catch(() => setFieldConfig(DEFAULT_FIELD_CONFIG))
+      .finally(() => setSettingsLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -211,6 +223,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   data-testid={`field-toggle-${key}-visible`}
                   checked={fieldConfig[key].visible}
+                  disabled={!settingsLoaded}
                   onChange={(e) =>
                     setFieldConfig((prev) => ({
                       ...prev,
@@ -225,6 +238,7 @@ export default function SettingsPage() {
                   type="checkbox"
                   data-testid={`field-toggle-${key}-required`}
                   checked={fieldConfig[key].required}
+                  disabled={!settingsLoaded}
                   onChange={(e) =>
                     setFieldConfig((prev) => ({
                       ...prev,
@@ -236,12 +250,17 @@ export default function SettingsPage() {
               </label>
             </div>
           ))}
+          {!settingsLoaded && (
+            <p data-testid="field-config-loading" className="text-sm text-gray-500">
+              Loading field settings…
+            </p>
+          )}
           <button
             onClick={handleSaveFieldConfig}
             data-testid="save-field-config"
-            disabled={savingConfig}
+            disabled={savingConfig || !settingsLoaded}
             className={`px-4 py-2 text-white rounded ${
-              savingConfig ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600'
+              savingConfig || !settingsLoaded ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600'
             }`}
           >
             {savingConfig ? 'Saving...' : 'Save Field Settings'}

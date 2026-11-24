@@ -367,4 +367,85 @@ describe('LeadForm', () => {
     });
     expect(mockSuccess).not.toHaveBeenCalled();
   });
+
+  test('shows the required star only on fields the settings mark required, and validates them', async () => {
+    server.use(
+      rest.get('http://localhost:8000/api/lead-form-settings/', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json({
+            field_config: {
+              company: { visible: true, required: false },
+              lead_source: { visible: true, required: false },
+              notes: { visible: true, required: false },
+              preferred_contact: { visible: true, required: false },
+              phone: { visible: true, required: true },
+              property_address: { visible: true, required: false },
+            },
+          })
+        );
+      })
+    );
+    const labelFor = (testId: string) =>
+      document.querySelector(`label[for="${testId}"]`)?.textContent?.trim() ?? null;
+
+    const mockSuccess = jest.fn();
+    renderWithProviders(<LeadForm mode="create" onSuccess={mockSuccess} />);
+
+    // The `*` follows the saved settings: Phone required, Job Site
+    // Address not.
+    await waitFor(() => expect(labelFor('lead-phone')).toBe('Phone *'));
+    expect(labelFor('lead-property_address')).toBe('Job Site Address');
+    expect(labelFor('lead-company')).toBe('Company');
+
+    // Validation follows the same settings: an empty Phone blocks submit,
+    // an empty Job Site Address does not.
+    fireEvent.change(screen.getByTestId('lead-full_name'), { target: { value: 'Test User' } });
+    fireEvent.change(screen.getByTestId('lead-email'), { target: { value: 'test@example.com' } });
+    fireEvent.click(screen.getByTestId('lead-submit'));
+    await waitFor(() => {
+      expect(screen.getByText('Phone is required')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Job site address is required')).not.toBeInTheDocument();
+    expect(mockSuccess).not.toHaveBeenCalled();
+  });
+
+  test('retries the settings fetch after a transient failure and still shows the saved required markers', async () => {
+    let attempts = 0;
+    server.use(
+      rest.get('http://localhost:8000/api/lead-form-settings/', (req, res, ctx) => {
+        attempts += 1;
+        if (attempts === 1) {
+          // Simulate the free backend failing once (e.g. cold start).
+          return res(ctx.status(500));
+        }
+        return res(
+          ctx.status(200),
+          ctx.json({
+            field_config: {
+              company: { visible: true, required: false },
+              lead_source: { visible: true, required: false },
+              notes: { visible: true, required: false },
+              preferred_contact: { visible: true, required: false },
+              phone: { visible: true, required: true },
+              property_address: { visible: true, required: false },
+            },
+          })
+        );
+      })
+    );
+    const labelFor = (testId: string) =>
+      document.querySelector(`label[for="${testId}"]`)?.textContent?.trim() ?? null;
+
+    renderWithProviders(<LeadForm mode="create" onSuccess={jest.fn()} />);
+
+    // The first fetch fails, the retry succeeds, and the `*` follows the
+    // saved settings instead of silently falling back to the defaults
+    // (which would show no `*` on Phone).
+    await waitFor(() => expect(labelFor('lead-phone')).toBe('Phone *'), {
+      timeout: 5000,
+    });
+    expect(labelFor('lead-property_address')).toBe('Job Site Address');
+    expect(attempts).toBeGreaterThan(1);
+  });
 });

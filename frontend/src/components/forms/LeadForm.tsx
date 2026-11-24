@@ -5,6 +5,7 @@ import { ModalFooterContext } from '../ui/Modal';
 import { createLead, updateLead } from '../../api/leads';
 import { fetchCustomFields } from '../../api/customFields';
 import { getLeadFormSettings } from '../../api/leadFormSettings';
+import { withRetry } from '../../utils/retry';
 import {
   DEFAULT_FIELD_CONFIG,
   mergeFieldConfig,
@@ -278,11 +279,17 @@ export default function LeadForm({ initialData, mode, onSuccess, onCancel }: Lea
   // preferences. Each fetch fails independently: a settings failure falls
   // back to the defaults (all visible, property_address required) and the
   // form still renders.
+  // The settings fetch is retried (silent) because a single transient
+  // failure — e.g. the free backend waking from sleep — used to leave the
+  // form showing the default `*` markers instead of the saved settings.
+  // Once the fetch resolves the form re-renders with the saved config,
+  // so the `*` and the required validation follow the per-account
+  // settings.
   useEffect(() => {
     fetchCustomFields()
       .then((fields) => setCustomFields(fields.filter((f) => f.is_active)))
       .catch(() => setCustomFields([]));
-    getLeadFormSettings()
+    withRetry(() => getLeadFormSettings({ silent: true }), 3, 1000)
       .then((settings) =>
         setFieldConfig(mergeFieldConfig(settings?.field_config))
       )
