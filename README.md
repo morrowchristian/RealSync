@@ -1,113 +1,84 @@
-# RealSync – Full-Stack CRM for Lead & Contract Management
+# RealSync — CRM for Home Service Businesses
 
-_Last updated: May 25, 2025_
+RealSync is a full-stack CRM for home service businesses (plumbers, HVAC, electricians, roofers) that makes sure no estimate or lead goes cold. Leads, estimates, follow-ups, and contracts in one place, built with **Django REST Framework** and **React + Vite + TypeScript**.
 
-A solo-developed, full-stack client onboarding and management dashboard using **Django REST Framework (backend)** and **React + Vite + TypeScript + Tailwind CSS (frontend)**. Designed for managing real estate or client service workflows with agents, leads, and contracts.
+## Live demo
 
----
+- **Frontend:** https://real-sync-eta.vercel.app/
+- **Backend API:** https://realsync-backend.onrender.com
 
-## 📦 Tech Stack
-- **Backend**: Django 5.2, DRF, JWT (SimpleJWT), CORS
-- **Frontend**: React 18, Vite, Tailwind CSS, TypeScript
-- **Testing**: Jest, React Testing Library, MSW for API mocking
-- **Build Tools**: Vite, PostCSS, ESLint
-- **Other**: Docker (planned), AWS (planned)
+Note: the backend runs on Render's free plan, so it sleeps after 15 minutes of inactivity — the first request after a pause takes a while to wake up.
 
----
+## What it does
 
-## ✅ COMPLETED PHASES
+- **Leads** — Create, edit, search, filter, archive, and restore leads. Each lead has a contact card, status tracking, and a notes field.
+- **Lead form** — A configurable lead-entry form with solid built-in fields and optional custom fields. An admin can choose which fields are shown and which are required from Settings.
+- **Estimates** — Track estimates through sent, followed up, won, and lost.
+- **Follow-ups** — Log follow-ups per lead. The dashboard shows who to contact today so nothing slips.
+- **Contracts** — Create and manage contracts, with archiving and protected deletion of signed contracts.
+- **Spreadsheet views** — Leads and Contracts are shown as spreadsheet-style tables; double-click a lead to open its contact card.
+- **Auth & trials** — Sign up with email and password. New accounts get a 5-day trial with creation quotas (50 leads, 20 contracts, 10 custom fields). Expired trials are removed automatically.
+- **Visitor demo** — A read-only demo (`/demo`) shows sample data without signing up.
+- **Per-user data** — Every account only sees its own leads, estimates, follow-ups, and contracts.
 
-### PHASE 0: PROJECT FOUNDATION
-- Initialized GitHub repository and Codespaces
-- Created Django project and virtual environment
-- Installed DRF and CORS headers
-- Created React app using Vite + TypeScript
-- Installed and verified Tailwind CSS and PostCSS
-- Configured shared Axios instance and initial TypeScript settings
-- Set up custom user model (Agent) and initial migrations
+## Tech stack
 
-### PHASE 1: APP ARCHITECTURE & ROUTING
-- Backend apps: users, leads, contracts
-- Configured DRF routers and admin interface
-- Frontend routing with React Router and layout design (Leads, Contracts, Settings)
+- **Backend:** Django 5.2, Django REST Framework, SimpleJWT, Gunicorn, WhiteNoise
+- **Frontend:** React 18, Vite 6, TypeScript, Tailwind CSS v3
+- **Database:** Neon Postgres in production, SQLite by default locally
+- **Hosting:** Render (backend), Vercel (frontend)
+- **Testing:** Django test suite (backend); Jest, React Testing Library, MSW (frontend)
 
-### PHASE 2: DATA MODELING
-- Defined and migrated `Agent`, `Lead`, `Contract` models with proper relationships
-- Set `choices` for statuses and ensured admin functionality
+## Project structure
 
-### PHASE 3: API DEVELOPMENT (DRF)
-- Created serializers, viewsets, and routes for all models
-- Added CRUD endpoints and custom `/api/ping/` for health checks
-- Wrote and passed unit tests for API logic
+```
+backend/                 # Django project
+  backend/               # Project config (settings, urls, wsgi)
+  users/                 # Agent/user model, auth, trials, quotas
+  leads/                 # Lead and FollowUp models, API, tests
+  contracts/             # Contract and Estimate models, API, tests
+  manage.py
+  requirements.txt
+frontend/                # React + Vite app
+  src/api/               # Axios instance and API services
+  src/components/        # Reusable UI and form components
+  src/pages/             # Dashboard, Leads, Contracts, Estimates,
+                         # FollowUps, Auth, Settings, Demo
+  src/__tests__/         # Jest tests with MSW
+  src/utils/             # Shared helpers (e.g. request retry)
+```
 
-### PHASE 4: FRONTEND FEATURES
-- Integrated API services for leads and contracts
-- Created `LeadsPage` and `ContractsPage` with full CRUD support
-- Added `StatusTabs`, modals, and toasts for user interaction
-
-### PHASE 5: FEATURE COMPLETION
-- Implemented `LeadForm` and `ContractForm` with file upload support
-- Added feedback mechanisms (spinners, toasts)
-- Enabled archiving/restoring for leads and contracts
-- Protected deletion of signed contracts
-- Enhanced UX with search, filters, and error boundaries
-
-### PHASE 6: AUTHENTICATION (JWT)
-- Configured SimpleJWT for token-based auth
-- Implemented `/api/token/` and `/api/token/refresh/` endpoints
-- Verified secure access control and token refresh behavior
-
-### PHASE 7: TESTING & ERROR HANDLING
-- Reorganized Django test suite into modular folders per app
-- Added backend unit tests for API endpoints, archive logic, and JWT expiration/refresh
-- Implemented global `ErrorBoundary` for React crash recovery
-- Wrapped major pages in `<ErrorBoundary>`
-- Added `toast.error` feedback in all API error blocks
-- Created reusable `handleRequest()` for API requests
-- Added `EmptyState`, loading spinners, and user-friendly error fallbacks
-
-✅ *Deliverable:* Stable and error-resilient application with complete CRUD, error handling, and authentication.
-
----
-
-## 🚧 UPCOMING PHASES
-
-### PHASE 8: UI DESIGN POLISH
-- Improve layout and spacing with Tailwind
-- Add icons, dark mode, and mobile responsiveness
-- Enhance form validations and feedback
-
-### PHASE 9: DEPLOYMENT
-- Dockerize backend and frontend
-- Deploy Django to Render/Railway/AWS, frontend to Vercel/Netlify
-- Add environment variables for production
-- Optional: CI/CD with GitHub Actions
-
----
-
-## 📁 PROJECT STRUCTURE
-
-### Backend (`/backend/`)
-- `backend/` – Django project config (settings, urls, wsgi/asgi)
-- `users/`, `leads/`, `contracts/` – Models, serializers, views, tests
-- `manage.py`, `db.sqlite3`
-
-### Frontend (`/frontend/`)
-- `src/api/` – Axios instance and CRUD services
-- `src/components/` – Reusable UI and form components
-- `src/pages/` – Leads, Contracts, Auth, Settings pages
-- `src/__tests__/` – Jest tests with MSW (Mock Service Worker)
-- `src/mocks/` – Handlers for mocking backend APIs
-- `vite.config.ts`, `index.css`
-
----
-
-## 🔧 Setup & Run
+## Setup & run
 
 ### Backend
+
 ```bash
 cd backend
 python -m venv env
 source env/bin/activate
 pip install -r requirements.txt
+python manage.py migrate
 python manage.py runserver
+```
+
+By default the backend uses a local SQLite database (`db.sqlite3`). To use Postgres instead, set `DATABASE_URL` before running migrations. A superuser is created automatically on deploy via `ensure_superuser`; locally, use `python manage.py createsuperuser`.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend talks to `http://localhost:8000/api/` by default. To point it at a different backend, set `VITE_API_URL` in a `.env` file (for example, `VITE_API_URL=https://realsync-backend.onrender.com/api/` for the deployed backend).
+
+### Tests
+
+```bash
+# Backend (from backend/)
+python manage.py test
+
+# Frontend (from frontend/)
+npm test
+```
