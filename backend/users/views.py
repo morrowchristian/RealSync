@@ -6,7 +6,7 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -19,8 +19,34 @@ TRIAL_EXPIRED_MESSAGE = "Your trial has expired and this account was deleted."
 
 
 class AgentViewSet(viewsets.ModelViewSet):
-    queryset = Agent.objects.all()
+    """User-account records. The Agent model IS the user model
+    (AUTH_USER_MODEL = 'users.Agent'), so there is no "own agents"
+    list in the multi-record sense — each agent is one account.
+
+    Per-agent isolation, same pattern as Lead/Contract/Estimate:
+    the queryset is only the requesting user, so list returns just
+    self, and retrieve/update/delete on any other id 404s (DRF's
+    get_object() looks up through get_queryset(), so a non-matching
+    pk never leaks existence). Before this fix the queryset was
+    Agent.objects.all(), so any signed-in user could list, read,
+    edit, and delete every account.
+    """
     serializer_class = AgentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Agent.objects.filter(pk=self.request.user.pk)
+
+    def create(self, request, *args, **kwargs):
+        # Account creation goes through public signup
+        # (POST /api/register/) only. The agents endpoint must not
+        # be a back door for creating accounts outside the trial
+        # flow (RegistrationSerializer forces is_trial=True and
+        # validates the password; this serializer would not).
+        return Response(
+            {'detail': 'Method "POST" not allowed. Use /api/register/ to create an account.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
 
 class RegisterView(APIView):
