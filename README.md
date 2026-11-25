@@ -11,7 +11,7 @@ Note: the backend runs on Render's free plan, so it sleeps after 15 minutes of i
 
 ## What it does
 
-- **Leads** — Create, edit, search, filter, archive, and restore leads. Each lead has a contact card, status tracking, and a notes/activity view.
+- **Leads** — Create, edit, search, filter, archive, and restore leads. Each lead has a contact card, status tracking, and a notes field.
 - **Lead form** — A configurable lead-entry form with solid built-in fields and optional custom fields. An admin can choose which fields are shown and which are required from Settings.
 - **Estimates** — Track estimates through sent, followed up, won, and lost.
 - **Follow-ups** — Log follow-ups per lead. The dashboard shows who to contact today so nothing slips.
